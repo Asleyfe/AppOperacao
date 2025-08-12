@@ -67,6 +67,10 @@ export default function ChecklistModal({
     ocorrencia: '',  // Inicializa com string vazia
   });
   const [isSubmitting, setIsSubmitting] = useState(false); // New state for submission status
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+  const [scrollViewHeight, setScrollViewHeight] = useState(0);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
 
   useEffect(() => {
     if (visible && servicoId) {
@@ -491,7 +495,39 @@ export default function ChecklistModal({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalBody}>
+          <ScrollView 
+            style={styles.modalBody}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
+            scrollEventThrottle={16}
+            bounces={true}
+            alwaysBounceVertical={false}
+            removeClippedSubviews={false}
+            contentInsetAdjustmentBehavior="automatic"
+            directionalLockEnabled={false}
+            automaticallyAdjustContentInsets={false}
+            persistentScrollbar={true}
+            indicatorStyle="black"
+            scrollIndicatorInsets={{ right: 1 }}
+            fadingEdgeLength={50}
+            onScroll={(event) => {
+              const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+              setScrollPosition(contentOffset.y);
+              setContentHeight(contentSize.height);
+              setScrollViewHeight(layoutMeasurement.height);
+              setShowScrollIndicator(contentSize.height > layoutMeasurement.height);
+            }}
+            onContentSizeChange={(width, height) => {
+              setContentHeight(height);
+              setShowScrollIndicator(height > scrollViewHeight);
+            }}
+            onLayout={(event) => {
+              const { height } = event.nativeEvent.layout;
+              setScrollViewHeight(height);
+              setShowScrollIndicator(contentHeight > height);
+            }}
+          >
             <Text style={styles.serviceId}>Serviço: {servicoId}</Text>
             
             {/* Aviso para encarregados quando o serviço já foi finalizado */}
@@ -626,6 +662,8 @@ export default function ChecklistModal({
                     selectedValue={headerData.status_servico}
                     onValueChange={(itemValue) => setHeaderData({...headerData, status_servico: itemValue})}
                     style={styles.picker}
+                    itemStyle={{ color: '#1F2937', fontSize: 16 }}
+                    mode="dropdown"
                     enabled={!isSubmitting && !isFormDisabled}
                   >
                     <Picker.Item value="Parcial" label="Parcial" />
@@ -648,6 +686,8 @@ export default function ChecklistModal({
                     onValueChange={(itemValue) => handleGrupoSelect(itemValue)}
                     style={styles.picker}
                     enabled={!isSubmitting && !isFormDisabled}
+                    itemStyle={{ color: '#1F2937', fontSize: 16 }}
+                    mode="dropdown"
                   >
                     <Picker.Item value="" label="Selecione um grupo" />
                     {grupos.map((grupo) => (
@@ -674,6 +714,8 @@ export default function ChecklistModal({
                       }}
                       style={styles.picker}
                       enabled={!isSubmitting && !isFormDisabled}
+                      itemStyle={{ color: '#1F2937', fontSize: 16 }}
+                      mode="dropdown"
                     >
                       <Picker.Item value="" label="Selecione um item" />
                       {grupoItens
@@ -705,6 +747,8 @@ export default function ChecklistModal({
                       }}
                       style={styles.picker}
                       enabled={!isSubmitting && !isFormDisabled}
+                      itemStyle={{ color: '#1F2937', fontSize: 16 }}
+                      mode="dropdown"
                     >
                       <Picker.Item value="Instalado" label="Instalado" />
                       <Picker.Item value="Retirado" label="Retirado" />
@@ -788,6 +832,15 @@ export default function ChecklistModal({
             )}
           </ScrollView>
 
+          {/* Indicador de posição de rolagem */}
+          {showScrollIndicator && (
+            <View style={styles.scrollPosition}>
+              <Text style={styles.scrollPositionText}>
+                {Math.round((scrollPosition / Math.max(contentHeight - scrollViewHeight, 1)) * 100)}%
+              </Text>
+            </View>
+          )}
+
           <View style={styles.modalFooter}>
             <TouchableOpacity 
               style={styles.submitButton} 
@@ -839,6 +892,7 @@ const styles = StyleSheet.create({
   modalBody: {
     flex: 1,
     padding: 20,
+    paddingRight: 15, // Reduz padding direito para dar espaço à barra de rolagem
   },
   serviceId: {
     fontSize: 16,
@@ -915,9 +969,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#FFFFFF',
     overflow: 'hidden',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
   },
   picker: {
     height: 50,
+    color: '#1F2937', // Adiciona cor do texto
   },
   // Items Section Styles
   itemsSection: {
@@ -1214,5 +1277,37 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#3B82F6',
+  },
+  scrollIndicator: {
+    position: 'absolute',
+    right: 2,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    borderRadius: 2,
+  },
+  scrollThumb: {
+    position: 'absolute',
+    right: 2,
+    width: 4,
+    backgroundColor: '#3B82F6',
+    borderRadius: 2,
+    minHeight: 20,
+  },
+  scrollPosition: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(59, 130, 246, 0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    zIndex: 5,
+  },
+  scrollPositionText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

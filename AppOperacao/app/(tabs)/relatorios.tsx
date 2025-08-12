@@ -48,13 +48,17 @@ export default function ReportsScreen() {
   const [loading, setLoading] = useState(false);
   const [totalFaturamento, setTotalFaturamento] = useState(0);
   const [mediaFaturamento, setMediaFaturamento] = useState(0);
+  const [equipeEncarregado, setEquipeEncarregado] = useState<string | null>(null);
 
   const isAdmin = colaborador?.funcao === 'Admin';
   const isEncarregado = colaborador?.funcao?.toUpperCase().includes('ENCARREGADO');
 
   useEffect(() => {
     loadEquipes();
-  }, []);
+    if (isEncarregado && colaborador) {
+      loadEquipeEncarregado();
+    }
+  }, [colaborador, isEncarregado]);
 
   useEffect(() => {
     if (!authLoading && colaborador) {
@@ -73,6 +77,29 @@ export default function ReportsScreen() {
       setEquipes(data || []);
     } catch (error) {
       console.error('Erro ao carregar equipes:', error);
+    }
+  };
+
+  const loadEquipeEncarregado = async () => {
+    try {
+      if (!colaborador?.matricula) return;
+      
+      const { data, error } = await supabase
+        .from('equipes')
+        .select('prefixo')
+        .eq('encarregado_matricula', colaborador.matricula)
+        .single();
+      
+      if (error) {
+        console.error('Erro ao carregar equipe do encarregado:', error);
+        setEquipeEncarregado(null);
+        return;
+      }
+      
+      setEquipeEncarregado(data?.prefixo || null);
+    } catch (error) {
+      console.error('Erro ao carregar equipe do encarregado:', error);
+      setEquipeEncarregado(null);
     }
   };
 
@@ -436,7 +463,7 @@ export default function ReportsScreen() {
         {!isAdmin && (
           <View style={styles.infoContainer}>
             <Text style={styles.infoText}>
-              Visualizando dados da sua equipe: {colaborador?.equipes?.prefixo || 'N/A'}
+              Visualizando dados da sua equipe: {equipeEncarregado || 'N/A'}
             </Text>
           </View>
         )}
