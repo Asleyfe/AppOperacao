@@ -56,7 +56,7 @@ export default function LoginScreen() {
         }
 
         // Login bem-sucedido, o redirecionamento será feito automaticamente pelo _layout.tsx
-        console.log('Login realizado com sucesso');
+  
       }
     } catch (error) {
       console.error('Erro no login:', error);

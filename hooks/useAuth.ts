@@ -22,21 +22,14 @@ export function useAuth(): AuthState {
     // Escutar mudanças na autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('=== AUTH STATE CHANGE ===');
-        console.log('Event:', event);
-        console.log('Session:', session);
-        
         if (session?.user) {
-          console.log('Usuário logado:', session.user.id);
           setUser(session.user);
           await loadColaborador(session.user.id);
         } else {
-          console.log('Usuário deslogado - limpando estados');
           setUser(null);
           setColaborador(null);
         }
         setLoading(false);
-        console.log('Loading finalizado');
       }
     );
 
@@ -66,24 +59,17 @@ export function useAuth(): AuthState {
 
   const loadColaborador = async (userId: string) => {
     try {
-      console.log('=== DEBUG USEAUTH ===');
-      console.log('Carregando colaborador para userId:', userId);
-      
       const { data, error } = await supabase
         .from('colaboradores')
         .select('*')
         .eq('user_id', userId)
         .single();
 
-      console.log('Resultado da consulta colaborador:', { data, error });
-
       if (error) {
         console.error('Erro ao carregar colaborador:', error);
         setColaborador(null);
         return;
-      }
-
-      console.log('Colaborador carregado com sucesso:', data);
+      };
       setColaborador(data);
     } catch (error) {
       console.error('Erro ao carregar colaborador:', error);

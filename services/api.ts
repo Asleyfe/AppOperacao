@@ -388,7 +388,7 @@ export const api = {
     const { composicao, encarregadoMatricula, ...equipeData } = data;
     
     // Atualizar a equipe
-    console.log('Updating equipe with status_composicao:', equipeData.statusComposicao);
+
     const { data: updatedEquipe, error: equipeError } = await supabase
       .from('equipes')
       .update({
@@ -433,7 +433,7 @@ export const api = {
     const { composicao, encarregadoMatricula, ...equipeData } = data;
     
     // Inserir a equipe
-    console.log('Creating equipe with status_composicao:', equipeData.statusComposicao);
+
     const { data: newEquipe, error: equipeError } = await supabase
       .from('equipes')
       .insert({

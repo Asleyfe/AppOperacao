@@ -7,20 +7,24 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { MapPin, Play, Square, CircleCheck as CheckCircle, Clock, TriangleAlert as AlertTriangle } from 'lucide-react-native';
+import { MapPin, Play, Square, CircleCheck as CheckCircle, Clock, TriangleAlert as AlertTriangle, Wifi, WifiOff } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { api } from '@/services/api';
+import { OfflineDataService } from '@/services/offline/OfflineDataService';
 import { Servico, Equipe } from '@/types/types';
 import ChecklistModal from '@/components/ChecklistModal';
 import { useAuth } from '@/hooks/useAuth';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export default function ServicesScreen() {
   const { colaborador } = useAuth();
+  const { isConnected, isSyncing } = useNetworkStatus();
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [selectedServiceForChecklist, setSelectedServiceForChecklist] = useState<number | null>(null); // Changed from string to number
   const [showChecklistModal, setShowChecklistModal] = useState(false);
   const [currentTeam, setCurrentTeam] = useState<Equipe | null>(null);
+  const [offlineDataService] = useState(() => new OfflineDataService());
 
   const today = format(new Date(), 'yyyy-MM-dd');
 
@@ -32,10 +36,21 @@ export default function ServicesScreen() {
 
   const loadData = async () => {
     try {
-      const [servicosData, equipesData] = await Promise.all([
-        api.getServicos(),
-        api.getEquipes()
-      ]);
+      let servicosData, equipesData;
+      
+      if (isConnected) {
+        // Online: usar API normal
+        [servicosData, equipesData] = await Promise.all([
+          api.getServicos(),
+          api.getEquipes()
+        ]);
+      } else {
+        // Offline: usar dados locais
+        [servicosData, equipesData] = await Promise.all([
+          offlineDataService.getServicos(),
+          offlineDataService.getEquipes()
+        ]);
+      }
 
       // Find team for today with current logged user as encarregado (para compatibilidade)
       const teamToday = equipesData.find(
@@ -51,7 +66,10 @@ export default function ServicesScreen() {
 
       setServicos(todayServices);
     } catch (error) {
-      Alert.alert('Erro', 'Falha ao carregar dados');
+      const errorMessage = isConnected 
+        ? 'Falha ao carregar dados do servidor'
+        : 'Falha ao carregar dados offline. Verifique se os dados foram sincronizados anteriormente.';
+      Alert.alert('Erro', errorMessage);
     }
   };
 
@@ -77,12 +95,21 @@ export default function ServicesScreen() {
         }
       }
 
-      await api.updateServico(servicoId, updateData);
+      if (isConnected) {
+        // Online: atualizar diretamente no servidor
+        await api.updateServico(servicoId, updateData);
+      } else {
+        // Offline: usar serviço offline (será sincronizado depois)
+        await offlineDataService.updateServico(servicoId, updateData);
+      }
+      
       loadData();
 
-
     } catch (error) {
-      Alert.alert('Erro', 'Falha ao atualizar serviço');
+      const errorMessage = isConnected 
+        ? 'Falha ao atualizar serviço no servidor'
+        : 'Falha ao atualizar serviço offline. A alteração será sincronizada quando houver conexão.';
+      Alert.alert('Erro', errorMessage);
     }
   };
 
@@ -143,10 +170,8 @@ export default function ServicesScreen() {
         return {
           label: 'Fim Execução',
           action: () => {
-            console.log('Clicou em Fim Execução para serviço:', servico.id);
             setSelectedServiceForChecklist(servico.id);
-            setShowChecklistModal(true);
-            console.log('Estado do modal após clique:', { selectedServiceForChecklist: servico.id, showChecklistModal: true });
+    setShowChecklistModal(true);
           },
           color: '#059669'
         };
@@ -220,10 +245,32 @@ export default function ServicesScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Serviços do Dia</Text>
-        <Text style={styles.subtitle}>
-          {format(new Date(), 'dd/MM/yyyy', { locale: ptBR })}
-        </Text>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.title}>Serviços do Dia</Text>
+            <Text style={styles.subtitle}>
+              {format(new Date(), 'dd/MM/yyyy', { locale: ptBR })}
+            </Text>
+          </View>
+          <View style={styles.networkStatus}>
+            {isSyncing ? (
+              <View style={styles.syncingContainer}>
+                <Text style={styles.syncingText}>Sincronizando...</Text>
+              </View>
+            ) : (
+              <View style={[styles.statusContainer, { backgroundColor: isConnected ? '#10B981' : '#EF4444' }]}>
+                {isConnected ? (
+                  <Wifi size={16} color="#FFFFFF" />
+                ) : (
+                  <WifiOff size={16} color="#FFFFFF" />
+                )}
+                <Text style={styles.statusText}>
+                  {isConnected ? 'Online' : 'Offline'}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
       </View>
 
       <ScrollView style={styles.content}>
@@ -258,6 +305,11 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingTop: 60,
   },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -267,6 +319,33 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#D1FAE5',
+  },
+  networkStatus: {
+    alignItems: 'flex-end',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  statusText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  syncingContainer: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  syncingText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   content: {
     flex: 1,

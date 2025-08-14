@@ -26,9 +26,7 @@ try {
 }
 
 // Log para debug
-console.log('Supabase Config:');
-console.log('URL:', SUPABASE_URL);
-console.log('KEY:', SUPABASE_KEY ? `${SUPABASE_KEY.substring(0, 20)}...` : 'Não definida');
+
 
 // Verificar se as credenciais estão disponíveis
 if (!SUPABASE_URL || !SUPABASE_KEY) {
@@ -60,4 +58,3 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 });
 
 // Verificar se o cliente foi inicializado corretamente
-console.log('✅ Cliente Supabase inicializado');

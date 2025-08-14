@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, Platform, Dimensions } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import Modal from 'react-native-modal';
 import { X, Check } from 'lucide-react-native';
 import { format } from 'date-fns';
 import { api } from '@/services/api';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const isAndroid = Platform.OS === 'android';
 
 interface ConfirmShiftStartModalProps {
   visible: boolean;
@@ -83,57 +86,59 @@ export default function ConfirmShiftStartModal({
         </View>
 
         <View style={styles.modalBody}>
-          {turnoJaIniciado && (
-            <View style={styles.warningContainer}>
-              <Text style={styles.warningText}>
-                ⚠️ O turno já foi iniciado para esta equipe hoje.
-              </Text>
-            </View>
-          )}
-          
-          <Text style={styles.label}>Horário de Início no Sistema Oper:</Text>
-          
-          <View style={styles.timePickerContainer}>
-            <View style={styles.pickerWrapper}>
-              <Text style={styles.pickerLabel}>Hora</Text>
-              <View style={[styles.pickerContainer, turnoJaIniciado && styles.disabledPicker]}>
-                <Picker
-                  selectedValue={selectedHour}
-                  onValueChange={(itemValue) => setSelectedHour(itemValue)}
-                  style={styles.picker}
-                  enabled={!turnoJaIniciado}
-                  mode="dropdown"
-                >
-                  {hours.map((hour) => (
-                    <Picker.Item key={hour} label={hour} value={hour} />
-                  ))}
-                </Picker>
+          <View style={styles.contentContainer}>
+            {turnoJaIniciado && (
+              <View style={styles.warningContainer}>
+                <Text style={styles.warningText}>
+                  ⚠️ O turno já foi iniciado para esta equipe hoje.
+                </Text>
+              </View>
+            )}
+            
+            <Text style={styles.label}>Horário de Início no Sistema Oper:</Text>
+            
+            <View style={styles.timePickerContainer}>
+              <View style={styles.pickerWrapper}>
+                <Text style={styles.pickerLabel}>Hora</Text>
+                <View style={[styles.pickerContainer, turnoJaIniciado && styles.disabledPicker]}>
+                  <Picker
+                    selectedValue={selectedHour}
+                    onValueChange={(itemValue) => setSelectedHour(itemValue)}
+                    style={styles.picker}
+                    enabled={!turnoJaIniciado}
+                    mode={Platform.OS === 'android' ? 'dropdown' : 'dialog'} // dropdown no Android é mais compacto
+                   >
+                    {hours.map((hour) => (
+                      <Picker.Item key={hour} label={hour} value={hour} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+              
+              <Text style={styles.timeSeparator}>:</Text>
+              
+              <View style={styles.pickerWrapper}>
+                <Text style={styles.pickerLabel}>Minuto</Text>
+                <View style={[styles.pickerContainer, turnoJaIniciado && styles.disabledPicker]}>
+                  <Picker
+                    selectedValue={selectedMinute}
+                    onValueChange={(itemValue) => setSelectedMinute(itemValue)}
+                    style={styles.picker}
+                    enabled={!turnoJaIniciado}
+                    mode={Platform.OS === 'android' ? 'dropdown' : 'dialog'}
+                   >
+                    {minutes.map((minute) => (
+                      <Picker.Item key={minute} label={minute} value={minute} />
+                    ))}
+                  </Picker>
+                </View>
               </View>
             </View>
             
-            <Text style={styles.timeSeparator}>:</Text>
-            
-            <View style={styles.pickerWrapper}>
-              <Text style={styles.pickerLabel}>Minuto</Text>
-              <View style={[styles.pickerContainer, turnoJaIniciado && styles.disabledPicker]}>
-                <Picker
-                  selectedValue={selectedMinute}
-                  onValueChange={(itemValue) => setSelectedMinute(itemValue)}
-                  style={styles.picker}
-                  enabled={!turnoJaIniciado}
-                  mode="dropdown"
-                >
-                  {minutes.map((minute) => (
-                    <Picker.Item key={minute} label={minute} value={minute} />
-                  ))}
-                </Picker>
-              </View>
+            <View style={styles.selectedTimeContainer}>
+              <Text style={styles.selectedTimeLabel}>Horário selecionado:</Text>
+              <Text style={styles.selectedTime}>{selectedHour}:{selectedMinute}</Text>
             </View>
-          </View>
-          
-          <View style={styles.selectedTimeContainer}>
-            <Text style={styles.selectedTimeLabel}>Horário selecionado:</Text>
-            <Text style={styles.selectedTime}>{selectedHour}:{selectedMinute}</Text>
           </View>
         </View>
 
@@ -166,31 +171,37 @@ export default function ConfirmShiftStartModal({
 const styles = StyleSheet.create({
   modal: {
     margin: 0,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '70%',
-    minHeight: '50%',
+    borderRadius: 20,
+    marginHorizontal: 20,
+    maxHeight: isAndroid ? '75%' : '75%',
+    minHeight: isAndroid ? 380 : 280,
+    maxWidth: screenWidth - 40,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: isAndroid ? 16 : 20,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: isAndroid ? 20 : 22,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   modalBody: {
     flex: 1,
-    padding: 20,
+    padding: isAndroid ? 12 : 16,
+  },
+  contentContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+    minHeight: isAndroid ? 220 : 200,
   },
   label: {
     fontSize: 16,
@@ -207,7 +218,7 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   modalFooter: {
-    padding: 20,
+    padding: isAndroid ? 16 : 20,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
@@ -216,14 +227,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#10B981',
-    paddingVertical: 16,
-    borderRadius: 8,
+    paddingVertical: isAndroid ? 10 : 12,
+    borderRadius: isAndroid ? 6 : 8,
   },
   confirmButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: isAndroid ? 16 : 18,
     fontWeight: 'bold',
-    marginLeft: 8,
+    marginLeft: isAndroid ? 6 : 8,
   },
   loadingButton: {
     backgroundColor: '#9CA3AF',
@@ -254,60 +265,94 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 16,
+    marginVertical: isAndroid ? 8 : 12,
+    paddingHorizontal: isAndroid ? 12 : 16,
+    gap: isAndroid ? 12 : 16,
   },
   pickerWrapper: {
-    flex: 1,
     alignItems: 'center',
+    flex: 1,
+    maxWidth: isAndroid ? 110 : 120,
   },
   pickerLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 8,
-    fontWeight: '500',
+    fontSize: isAndroid ? 14 : 16,
+    color: '#374151',
+    marginBottom: isAndroid ? 6 : 8,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   pickerContainer: {
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 8,
+    borderRadius: isAndroid ? 6 : 8,
     backgroundColor: '#FFFFFF',
-    width: '100%',
-    minHeight: 120,
+    height: isAndroid ? 48 : 50,
+    minHeight: isAndroid ? 48 : 50,
     justifyContent: 'center',
+    paddingHorizontal: isAndroid ? 8 : 4,
+    paddingVertical: isAndroid ? 2 : 0,
+    overflow: 'visible',
+    elevation: isAndroid ? 1 : 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: isAndroid ? 0.05 : 0.08,
+    shadowRadius: isAndroid ? 1 : 2,
+    width: '100%',
   },
   picker: {
-    height: 120,
+    height: isAndroid ? 48 : 50,
     width: '100%',
+    margin: 0,
+    padding: 0,
+    fontSize: isAndroid ? 16 : 18,
   },
   disabledPicker: {
     backgroundColor: '#F3F4F6',
     opacity: 0.6,
   },
   timeSeparator: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: isAndroid ? 20 : 24,
+    fontWeight: '700',
     color: '#1F2937',
-    marginHorizontal: 16,
-    marginTop: 20,
+    alignSelf: 'center',
+    marginTop: isAndroid ? 8 : 12,
+    paddingHorizontal: isAndroid ? 4 : 6,
+    textAlign: 'center',
   },
   selectedTimeContainer: {
     backgroundColor: '#F0F9FF',
     borderColor: '#0EA5E9',
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: isAndroid ? 6 : 8,
+    padding: isAndroid ? 8 : 8,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: isAndroid ? 16 : 12,
+    marginBottom: isAndroid ? 20 : 0,
+    marginHorizontal: 0,
+    shadowColor: '#0EA5E9',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: isAndroid ? 0.1 : 0.08,
+    shadowRadius: isAndroid ? 2 : 2,
+    elevation: isAndroid ? 2 : 2,
+    minHeight: isAndroid ? 50 : 45,
   },
   selectedTimeLabel: {
-    fontSize: 14,
+    fontSize: isAndroid ? 12 : 12,
     color: '#0369A1',
-    fontWeight: '500',
-    marginBottom: 4,
+    fontWeight: '600',
+    marginBottom: isAndroid ? 4 : 4,
+    textAlign: 'center',
   },
   selectedTime: {
-    fontSize: 20,
+    fontSize: isAndroid ? 16 : 16,
     color: '#0369A1',
     fontWeight: 'bold',
+    letterSpacing: isAndroid ? 0.5 : 0.5,
   },
 });

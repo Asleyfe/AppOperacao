@@ -12,10 +12,12 @@ import {
 } from 'react-native';
 import { Alert } from 'react-native'; // Manter Alert para erros críticos, mas não para fluxo normal
 import { Picker } from '@react-native-picker/picker';
-import { X, CircleCheck as CheckCircle, Send, Plus, Minus } from 'lucide-react-native';
+import { X, CircleCheck as CheckCircle, Send, Plus, Minus, Wifi, WifiOff } from 'lucide-react-native';
 import { api } from '@/services/api';
+import { OfflineDataService } from '@/services/offline/OfflineDataService';
 import { GrupoItem, GIServico, Servico, ServicoHeader } from '@/types/types';
 import { useAuth } from '@/hooks/useAuth';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 // Define a local interface for GIServico to handle n_serie as string[] internally
 interface LocalGIServico extends Omit<GIServico, 'n_serie'> {
@@ -36,8 +38,9 @@ export default function ChecklistModal({
   onComplete
 }: ChecklistModalProps) {
 
-  
   const { colaborador } = useAuth();
+  const { isConnected, isSyncing } = useNetworkStatus();
+  const [offlineDataService] = useState(() => new OfflineDataService());
   const [grupos, setGrupos] = useState<string[]>([]);
   const [grupoItens, setGrupoItens] = useState<GrupoItem[]>([]);
   const [servico, setServico] = useState<Servico | null>(null);
@@ -81,8 +84,22 @@ export default function ChecklistModal({
   const loadData = async () => {
 
     try {
-      // Carregar dados do serviço
-      const servicosData = await api.getServicos();
+      let servicosData, gruposData, itensData, giservicosData;
+      
+      if (isConnected) {
+        // Online: usar API normal
+        servicosData = await api.getServicos();
+        gruposData = await api.getGrupos();
+        itensData = await api.getGrupoItens();
+        giservicosData = await api.getGIServicosByServico(servicoId!);
+      } else {
+        // Offline: usar dados locais
+        servicosData = await offlineDataService.getServicos();
+        gruposData = await offlineDataService.getGrupos();
+        itensData = await offlineDataService.getGrupoItens();
+        giservicosData = await offlineDataService.getGIServicosByServico(servicoId!);
+      }
+      
       const servicoData = servicosData.find((s: any) => s.id === servicoId);
       
       if (servicoData) {
@@ -99,18 +116,8 @@ export default function ChecklistModal({
           return;
         }
         
-        // Carregar grupos disponíveis
-        const gruposData = await api.getGrupos();
-
         setGrupos(gruposData);
-        
-        // Carregar todos os itens
-        const itensData = await api.getGrupoItens();
-
         setGrupoItens(itensData);
-        
-        // Carregar itens já adicionados ao serviço
-        const giservicosData = await api.getGIServicosByServico(servicoId!);
 
         // Transformar n_serie de string para array se necessário
         const formattedGiservicos = giservicosData.map((gi: GIServico) => ({
@@ -303,19 +310,32 @@ export default function ChecklistModal({
 
       // Salvar ou atualizar header do serviço
       try {
-        const existingHeader = await api.getServicoHeader(servicoId!);
-        let headerResult;
-        if (existingHeader) {
-
-          headerResult = await api.updateServicoHeader(servicoId!, headerData);
+        let existingHeader, headerResult;
+        
+        if (isConnected) {
+          // Online: usar API normal
+          existingHeader = await api.getServicoHeader(servicoId!);
+          if (existingHeader) {
+            headerResult = await api.updateServicoHeader(servicoId!, headerData);
+          } else {
+            headerResult = await api.createServicoHeader(headerData);
+          }
         } else {
-
-          headerResult = await api.createServicoHeader(headerData);
+          // Offline: usar serviço offline (será sincronizado depois)
+          existingHeader = await offlineDataService.getServicoHeader(servicoId!);
+          if (existingHeader) {
+            headerResult = await offlineDataService.updateServicoHeader(servicoId!, headerData);
+          } else {
+            headerResult = await offlineDataService.createServicoHeader(headerData);
+          }
         }
 
       } catch (headerError: any) {
         console.error('Erro ao salvar/atualizar cabeçalho:', headerError);
-        Alert.alert('Erro', `Falha ao salvar cabeçalho: ${headerError.message || headerError}`);
+        const errorMessage = isConnected 
+          ? `Falha ao salvar cabeçalho no servidor: ${headerError.message || headerError}`
+          : `Falha ao salvar cabeçalho offline: ${headerError.message || headerError}. Será sincronizado quando houver conexão.`;
+        Alert.alert('Erro', errorMessage);
         setIsSubmitting(false); // Reset submitting state on error
         return; // Interrompe se o cabeçalho não puder ser salvo
       }
@@ -346,11 +366,18 @@ export default function ChecklistModal({
             };
 
             try {
-              await api.createGIServico(giToSaveForSerial);
+              if (isConnected) {
+                await api.createGIServico(giToSaveForSerial);
+              } else {
+                await offlineDataService.createGIServico(giToSaveForSerial);
+              }
 
             } catch (giError: any) {
               console.error('Erro ao salvar item GI serializado:', giError);
-              Alert.alert('Erro', `Falha ao salvar item serializado (${serial}): ${giError.message || giError}`);
+              const errorMessage = isConnected 
+                ? `Falha ao salvar item serializado (${serial}): ${giError.message || giError}`
+                : `Falha ao salvar item serializado offline (${serial}): ${giError.message || giError}. Será sincronizado quando houver conexão.`;
+              Alert.alert('Erro', errorMessage);
               hasErrorSavingItems = true;
             }
           }
@@ -372,17 +399,26 @@ export default function ChecklistModal({
             let giResult;
             if (giservico.id && giservico.id > 1000000) {
               // Item novo (ID temporário) - send data without the temporary ID
-  
-              giResult = await api.createGIServico(finalGiservicoToSave);
+              if (isConnected) {
+                giResult = await api.createGIServico(finalGiservicoToSave);
+              } else {
+                giResult = await offlineDataService.createGIServico(finalGiservicoToSave);
+              }
             } else if (giservico.id) {
               // Item existente - use the actual ID for update
-  
-              giResult = await api.updateGIServico(giservico.id, finalGiservicoToSave);
+              if (isConnected) {
+                giResult = await api.updateGIServico(giservico.id, finalGiservicoToSave);
+              } else {
+                giResult = await offlineDataService.updateGIServico(giservico.id, finalGiservicoToSave);
+              }
             }
   
           } catch (giError: any) {
             console.error('Erro ao salvar/atualizar item GI:', giError);
-            Alert.alert('Erro', `Falha ao salvar item do checklist: ${giError.message || giError}`);
+            const errorMessage = isConnected 
+              ? `Falha ao salvar item do checklist: ${giError.message || giError}`
+              : `Falha ao salvar item do checklist offline: ${giError.message || giError}. Será sincronizado quando houver conexão.`;
+            Alert.alert('Erro', errorMessage);
             hasErrorSavingItems = true;
           }
         }
@@ -407,7 +443,11 @@ export default function ChecklistModal({
             status_servico: headerData.status_servico // Usar o status diretamente do formulário
           };
           
-          await api.updateServicoHeader(servicoId!, updatedHeaderData);
+          if (isConnected) {
+            await api.updateServicoHeader(servicoId!, updatedHeaderData);
+          } else {
+            await offlineDataService.updateServicoHeader(servicoId!, updatedHeaderData);
+          }
           
           // O status da tabela servicos deve sempre ser 'Finalizado' quando o checklist for enviado
           // independente do status_servico selecionado no formulário
@@ -421,11 +461,18 @@ export default function ChecklistModal({
             }
           };
           
-          await api.updateServico(servicoId!, updatedServicoData);
+          if (isConnected) {
+            await api.updateServico(servicoId!, updatedServicoData);
+          } else {
+            await offlineDataService.updateServico(servicoId!, updatedServicoData);
+          }
 
         } catch (updateServicoError: any) {
           console.error('Erro ao atualizar status do serviço:', updateServicoError);
-          Alert.alert('Erro', `Falha ao atualizar status do serviço: ${updateServicoError.message || updateServicoError}`);
+          const errorMessage = isConnected 
+            ? `Falha ao atualizar status do serviço: ${updateServicoError.message || updateServicoError}`
+            : `Falha ao atualizar status do serviço offline: ${updateServicoError.message || updateServicoError}. Será sincronizado quando houver conexão.`;
+          Alert.alert('Erro', errorMessage);
           setIsSubmitting(false);
           return;
         }
@@ -489,7 +536,26 @@ export default function ChecklistModal({
             </View>
           )}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Checklist do Serviço</Text>
+            <View style={styles.headerLeft}>
+              <Text style={styles.modalTitle}>Checklist do Serviço</Text>
+              <View style={styles.networkStatus}>
+                <View style={styles.statusContainer}>
+                  {isConnected ? (
+                    <Wifi size={16} color="#10B981" />
+                  ) : (
+                    <WifiOff size={16} color="#EF4444" />
+                  )}
+                  <Text style={[styles.statusText, { color: isConnected ? '#10B981' : '#EF4444' }]}>
+                    {isConnected ? 'Online' : 'Offline'}
+                  </Text>
+                </View>
+                {isSyncing && (
+                  <View style={styles.syncContainer}>
+                    <Text style={styles.syncText}>Sincronizando...</Text>
+                  </View>
+                )}
+              </View>
+            </View>
             <TouchableOpacity onPress={onClose} disabled={isSubmitting}>
               <X size={24} color="#6B7280" />
             </TouchableOpacity>
@@ -888,6 +954,29 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#1F2937',
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  networkStatus: {
+    marginTop: 8,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  syncContainer: {
+    marginTop: 4,
+  },
+  syncText: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontStyle: 'italic',
   },
   modalBody: {
     flex: 1,

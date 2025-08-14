@@ -165,9 +165,7 @@ export default function TeamScreen() {
       if (!confirmed) return;
       
       try {
-        console.log('Iniciando logout...');
         await supabase.auth.signOut();
-        console.log('Logout realizado com sucesso');
         // O redirecionamento será feito automaticamente pelo _layout.tsx
       } catch (error) {
         console.error('Erro ao fazer logout:', error);
@@ -185,9 +183,7 @@ export default function TeamScreen() {
             style: 'destructive',
             onPress: async () => {
               try {
-                console.log('Iniciando logout...');
                 await supabase.auth.signOut();
-                console.log('Logout realizado com sucesso');
                 // O redirecionamento será feito automaticamente pelo _layout.tsx
                 // quando o estado de autenticação mudar
               } catch (error) {
