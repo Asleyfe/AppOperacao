@@ -72,6 +72,7 @@ export default function TabLayout() {
           ),
           href: isEncarregado ? null : '/importar',
         }}
-      />    </Tabs>
+      />
+    </Tabs>
   );
 }

@@ -4,6 +4,11 @@ import { QueueService } from './QueueService';
    
    export class NetworkService {
      private static listeners: ((isConnected: boolean) => void)[] = [];
+     private static colaboradorMatricula: string | null = null;
+     
+     static setColaboradorMatricula(matricula: string | null) {
+       this.colaboradorMatricula = matricula;
+     }
      
      static async initialize() {
        // Monitorar mudanças na conectividade
@@ -34,7 +39,7 @@ import { QueueService } from './QueueService';
          // Sincronizar dados
          const syncService = new SyncService();
          await syncService.syncToServer(); // Enviar dados locais
-         await syncService.syncFromServer(); // Baixar dados atualizados
+         await syncService.syncFromServer(this.colaboradorMatricula || undefined); // Baixar dados atualizados filtrados por encarregado
          
          // Processar fila de operações
          await QueueService.processQueue();

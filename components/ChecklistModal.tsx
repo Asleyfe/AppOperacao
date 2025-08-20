@@ -151,24 +151,28 @@ export default function ChecklistModal({
           ocorrencia: '',  // Garante valor padrão
         };
 
-        try {
-          const headerDataResponse = await api.getServicoHeader(servicoId!);
-          if (headerDataResponse) {
-            // Se o cabeçalho existir, usa os dados do banco
-            setHeaderData(headerDataResponse);
-          } else {
-            // Se não existir, usa os valores padrão baseados em servicoData
-            setHeaderData(defaultHeaderData);
+        if (isConnected) {
+          try {
+            const headerDataResponse = await api.getServicoHeader(servicoId!);
+            if (headerDataResponse) {
+              // Se o cabeçalho existir, usa os dados do banco
+              setHeaderData(headerDataResponse);
+            } else {
+              // Se não existir, usa os valores padrão baseados em servicoData
+              setHeaderData(defaultHeaderData);
+            }
+          } catch (headerError: any) {
+            console.error('Error fetching header:', headerError);
+            if (headerError.code === 'PGRST116' || (headerError.message && headerError.message.includes('406'))) {
+              // Se houver erro (não encontrado ou 406), inicializa com os valores padrão
+              setHeaderData(defaultHeaderData);
+            } else {
+              Alert.alert('Erro', 'Falha ao carregar cabeçalho do serviço');
+            }
           }
-        } catch (headerError: any) {
-          console.error('Error fetching header:', headerError);
-          if (headerError.code === 'PGRST116' || (headerError.message && headerError.message.includes('406'))) {
-
-            // Se houver erro (não encontrado ou 406), inicializa com os valores padrão
-            setHeaderData(defaultHeaderData);
-          } else {
-            Alert.alert('Erro', 'Falha ao carregar cabeçalho do serviço');
-          }
+        } else {
+          // Offline: usar apenas dados padrão baseados em servicoData
+          setHeaderData(defaultHeaderData);
         }
       } else {
 
@@ -617,6 +621,7 @@ export default function ChecklistModal({
                     value={headerData.km_inicial?.toString() || ''}
                     onChangeText={(text) => setHeaderData({...headerData, km_inicial: parseInt(text) || undefined})}
                     placeholder="0"
+                    placeholderTextColor="#9CA3AF"
                     keyboardType="numeric"
                     editable={!isSubmitting}
                   />
@@ -628,6 +633,7 @@ export default function ChecklistModal({
                     value={headerData.km_final?.toString() || ''}
                     onChangeText={(text) => setHeaderData({...headerData, km_final: parseInt(text) || undefined})}
                     placeholder="0"
+                    placeholderTextColor="#9CA3AF"
                     keyboardType="numeric"
                     editable={!isSubmitting}
                   />
@@ -642,6 +648,7 @@ export default function ChecklistModal({
                     value={headerData.equipe_prefixo}
                     editable={false}
                     placeholder="Prefixo da equipe"
+                    placeholderTextColor="#9CA3AF"
                   />
                 </View>
                 <View style={styles.headerField}>
@@ -651,6 +658,7 @@ export default function ChecklistModal({
                     value={headerData.data_execucao}
                     editable={false}
                     placeholder="Data atual"
+                    placeholderTextColor="#9CA3AF"
                   />
                 </View>
               </View>
@@ -663,6 +671,7 @@ export default function ChecklistModal({
                     value={headerData.hora_inicial}
                     editable={false}
                     placeholder="00:00"
+                    placeholderTextColor="#9CA3AF"
                   />
                 </View>
                 <View style={styles.headerField}>
@@ -672,6 +681,7 @@ export default function ChecklistModal({
                     value={headerData.hora_final}
                     editable={false}
                     placeholder="00:00"
+                    placeholderTextColor="#9CA3AF"
                   />
                 </View>
               </View>
@@ -684,6 +694,7 @@ export default function ChecklistModal({
                     value={headerData.equipamento}
                     onChangeText={(text) => setHeaderData({...headerData, equipamento: text})}
                     placeholder="Número de série do equipamento"
+                    placeholderTextColor="#9CA3AF"
                     editable={!isSubmitting}
                   />
                 </View>
@@ -694,6 +705,7 @@ export default function ChecklistModal({
                     value={headerData.projeto}
                     editable={false}
                     placeholder="Nota do serviço"
+                    placeholderTextColor="#9CA3AF"
                   />
                 </View>
               </View>
@@ -702,12 +714,13 @@ export default function ChecklistModal({
                 <View style={styles.headerField}>
                   <Text style={styles.fieldLabel}>SI</Text>
                   <TextInput
-                    style={styles.headerInput}
-                    value={headerData.si}
-                    onChangeText={(text) => setHeaderData({...headerData, si: text})}
-                    placeholder="Número sistêmico SI"
-                    editable={!isSubmitting && !isFormDisabled}
-                  />
+                  style={styles.headerInput}
+                  value={headerData.si}
+                  onChangeText={(text) => setHeaderData({...headerData, si: text})}
+                  placeholder="Número sistêmico SI"
+                  placeholderTextColor="#9CA3AF"
+                  editable={!isSubmitting && !isFormDisabled}
+                />
                 </View>
                 <View style={styles.headerField}>
                   <Text style={styles.fieldLabel}>PTP</Text>
@@ -716,6 +729,7 @@ export default function ChecklistModal({
                     value={headerData.ptp}
                     onChangeText={(text) => setHeaderData({...headerData, ptp: text})}
                     placeholder="Número sistêmico PTP"
+                    placeholderTextColor="#9CA3AF"
                     editable={!isSubmitting && !isFormDisabled}
                   />
                 </View>
@@ -1042,6 +1056,7 @@ const styles = StyleSheet.create({
      padding: 12,
      fontSize: 16,
      backgroundColor: '#fff',
+     color: '#1F2937',
      minHeight: 44,
    },
    readOnlyInput: {
@@ -1162,14 +1177,14 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   serialInput: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 6,
-    padding: 12,
-    fontSize: 14,
-    color: '#1F2937',
-  },
+     backgroundColor: '#FFFFFF',
+     borderWidth: 1,
+     borderColor: '#E5E7EB',
+     borderRadius: 6,
+     padding: 12,
+     fontSize: 14,
+     color: '#1F2937',
+   },
   addItemButton: {
     backgroundColor: '#10B981',
     flexDirection: 'row',
@@ -1268,14 +1283,15 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   serialNumberInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 6,
-    padding: 10,
-    fontSize: 14,
-    backgroundColor: '#FFFFFF',
-    minHeight: 40,
-  },
+     borderWidth: 1,
+     borderColor: '#D1D5DB',
+     borderRadius: 6,
+     padding: 10,
+     fontSize: 14,
+     backgroundColor: '#FFFFFF',
+     color: '#1F2937',
+     minHeight: 40,
+   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',

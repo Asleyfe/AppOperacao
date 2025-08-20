@@ -15,7 +15,10 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/services/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { OfflineDataService } from '@/services/offline/OfflineDataService';
 import { Picker } from '@react-native-picker/picker';
+import * as api from '@/services/api';
 
 // Interfaces para os dados de faturamento
 interface FaturamentoDiario {
@@ -38,6 +41,8 @@ interface EquipeOption {
 
 export default function ReportsScreen() {
   const { colaborador, loading: authLoading } = useAuth();
+  const { isConnected, isSyncing } = useNetworkStatus();
+  const [offlineDataService] = useState(() => new OfflineDataService());
   const [startDate, setStartDate] = useState(subWeeks(new Date(), 7));
   const [endDate, setEndDate] = useState(new Date());
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
@@ -68,15 +73,30 @@ export default function ReportsScreen() {
 
   const loadEquipes = async () => {
     try {
-      const { data, error } = await supabase
-        .from('equipes')
-        .select('id, prefixo')
-        .order('prefixo');
-      
-      if (error) throw error;
-      setEquipes(data || []);
+      if (isConnected) {
+        // Online: buscar do Supabase
+        const { data, error } = await supabase
+          .from('equipes')
+          .select('id, prefixo')
+          .order('prefixo');
+        
+        if (error) throw error;
+        setEquipes(data || []);
+      } else {
+        // Offline: buscar dados locais
+        const equipesOffline = await offlineDataService.getEquipes();
+        const equipesFormatted = equipesOffline.map(equipe => ({
+          id: equipe.id.toString(),
+          prefixo: equipe.prefixo
+        }));
+        setEquipes(equipesFormatted);
+      }
     } catch (error) {
       console.error('Erro ao carregar equipes:', error);
+      const errorMessage = isConnected 
+        ? 'Falha ao carregar equipes do servidor. Verifique sua conexão.' 
+        : 'Falha ao carregar equipes offline. Verifique se os dados foram sincronizados anteriormente.';
+      console.error(errorMessage);
     }
   };
 
@@ -84,19 +104,29 @@ export default function ReportsScreen() {
     try {
       if (!colaborador?.matricula) return;
       
-      const { data, error } = await supabase
-        .from('equipes')
-        .select('prefixo')
-        .eq('encarregado_matricula', colaborador.matricula)
-        .single();
-      
-      if (error) {
-        console.error('Erro ao carregar equipe do encarregado:', error);
-        setEquipeEncarregado(null);
-        return;
+      if (isConnected) {
+        // Online: buscar do Supabase
+        const { data, error } = await supabase
+          .from('equipes')
+          .select('prefixo')
+          .eq('encarregado_matricula', colaborador.matricula)
+          .single();
+        
+        if (error) {
+          console.error('Erro ao carregar equipe do encarregado:', error);
+          setEquipeEncarregado(null);
+          return;
+        }
+        
+        setEquipeEncarregado(data?.prefixo || null);
+      } else {
+        // Offline: buscar dados locais
+        const equipesOffline = await offlineDataService.getEquipes();
+        const equipeEncarregado = equipesOffline.find(equipe => 
+          equipe.encarregado_matricula === colaborador.matricula
+        );
+        setEquipeEncarregado(equipeEncarregado?.prefixo || null);
       }
-      
-      setEquipeEncarregado(data?.prefixo || null);
     } catch (error) {
       console.error('Erro ao carregar equipe do encarregado:', error);
       setEquipeEncarregado(null);
@@ -108,6 +138,15 @@ export default function ReportsScreen() {
     try {
       if (!colaborador) {
         setLoading(false);
+        return;
+      }
+      
+      // Verificar conectividade
+      if (!isConnected) {
+        console.log('Modo offline: dados de faturamento não disponíveis');
+        setFaturamentoData([]);
+        setTotalFaturamento(0);
+        setMediaFaturamento(0);
         return;
       }
       
@@ -292,6 +331,16 @@ export default function ReportsScreen() {
         <View style={styles.headerText}>
           <Text style={styles.title}>Faturamento Semanal</Text>
           <Text style={styles.subtitle}>Análise de valores por semana</Text>
+        </View>
+        <View style={[styles.statusContainer, { backgroundColor: isConnected ? '#10B981' : 'transparent' }]}>
+          {isConnected ? (
+            <View style={styles.statusDot} />
+          ) : (
+            <View style={[styles.statusDot, { backgroundColor: '#EF4444' }]} />
+          )}
+          <Text style={[styles.statusText, { color: isConnected ? '#FFFFFF' : '#EF4444' }]}>
+            {isConnected ? 'Online' : 'Offline'}
+          </Text>
         </View>
       </View>
 
@@ -775,5 +824,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#1565c0',
     fontWeight: '500',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginLeft: 16,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FFFFFF',
+    marginRight: 6,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

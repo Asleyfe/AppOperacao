@@ -39,12 +39,13 @@ export default function ImportScreen() {
   const loadCurrentTeam = async () => {
     try {
       const equipesData = await api.getEquipes();
+      
       const teamToday = equipesData.find(
-        (equipe: Equipe) => equipe.data === today && equipe.encarregado_matricula === colaborador?.matricula
+        (equipe: Equipe) => equipe.data === today && equipe.encarregadoMatricula === colaborador?.matricula
       );
       setCurrentTeam(teamToday || null);
     } catch (error) {
-      console.error('Erro ao carregar equipe:', error);
+      console.error('Erro ao carregar equipe atual:', error);
     }
   };
 

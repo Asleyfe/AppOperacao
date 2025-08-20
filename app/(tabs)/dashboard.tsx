@@ -12,8 +12,10 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { api } from '@/services/api';
 import { Equipe, Colaborador, Servico } from '@/types/types';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function DashboardScreen() {
+  const { colaborador } = useAuth();
   const [equipes, setEquipes] = useState<Equipe[]>([]);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);

@@ -36,36 +36,78 @@ export default function ServicesScreen() {
 
   const loadData = async () => {
     try {
-      let servicosData, equipesData;
+      console.log('📊 [OFFLINE DEBUG] Iniciando loadData');
+      console.log('🌐 [OFFLINE DEBUG] Status da conexão:', isConnected);
+      console.log('👤 [OFFLINE DEBUG] Colaborador logado:', colaborador?.matricula);
+      console.log('📅 [OFFLINE DEBUG] Data de hoje:', today);
       
       if (isConnected) {
-        // Online: usar API normal
-        [servicosData, equipesData] = await Promise.all([
+        console.log('🌐 [OFFLINE DEBUG] Carregando dados ONLINE');
+        const [servicosData, equipesData] = await Promise.all([
           api.getServicos(),
           api.getEquipes()
         ]);
+        
+        console.log('📋 [OFFLINE DEBUG] Serviços recebidos (online):', servicosData.length);
+        console.log('👥 [OFFLINE DEBUG] Equipes recebidas (online):', equipesData.length);
+        
+        // Find team for today with current logged user as encarregado (para compatibilidade)
+        const teamToday = equipesData.find(
+          (equipe: Equipe) => equipe.data === today && equipe.encarregadoMatricula === colaborador?.matricula
+        );
+        console.log('🎯 [OFFLINE DEBUG] Equipe do dia encontrada:', teamToday);
+        setCurrentTeam(teamToday || null);
+
+        // Filtrar serviços para hoje
+        const todayServices = servicosData.filter(
+          (servico: Servico) => servico.dataPlanejada === today
+        );
+        
+        console.log('✅ [OFFLINE DEBUG] Serviços filtrados (online):', todayServices.length);
+        console.log('📋 [OFFLINE DEBUG] Serviços filtrados (detalhes):', todayServices.map(s => ({
+          id: s.id,
+          status: s.status,
+          dataPlanejada: s.dataPlanejada
+        })));
+
+        setServicos(todayServices);
       } else {
-        // Offline: usar dados locais
-        [servicosData, equipesData] = await Promise.all([
-          offlineDataService.getServicos(),
-          offlineDataService.getEquipes()
-        ]);
+        console.log('📱 [OFFLINE DEBUG] Carregando dados OFFLINE');
+        
+        // Usar o novo método que filtra por encarregado
+        const servicosData = await offlineDataService.getServicosByEncarregado(
+          colaborador?.matricula || '',
+          today
+        );
+        
+        const equipesData = await offlineDataService.getEquipesByEncarregado(
+          colaborador?.matricula || ''
+        );
+        
+        console.log('📋 [OFFLINE DEBUG] Serviços do encarregado (offline):', servicosData.length);
+        console.log('👥 [OFFLINE DEBUG] Equipes do encarregado (offline):', equipesData.length);
+        
+        // Find team for today with current logged user as encarregado (para compatibilidade)
+        const teamToday = equipesData.find(
+          (equipe: Equipe) => equipe.data === today && equipe.encarregadoMatricula === colaborador?.matricula
+        );
+        console.log('🎯 [OFFLINE DEBUG] Equipe do dia encontrada (offline):', teamToday);
+        setCurrentTeam(teamToday || null);
+
+        // Os serviços já vêm filtrados do método getServicosByEncarregado
+        console.log('✅ [OFFLINE DEBUG] Serviços já filtrados (offline):', servicosData.length);
+        console.log('📋 [OFFLINE DEBUG] Detalhes dos serviços (offline):', servicosData.map(s => ({
+          id: s.id,
+          numero: s.numero,
+          status: s.status,
+          dataPlanejada: s.dataPlanejada,
+          encarregadoId: s.encarregadoId
+        })));
+
+        setServicos(servicosData);
       }
-
-      // Find team for today with current logged user as encarregado (para compatibilidade)
-      const teamToday = equipesData.find(
-        (equipe: Equipe) => equipe.data === today && equipe.encarregadoMatricula === colaborador?.matricula
-      );
-      setCurrentTeam(teamToday || null);
-
-      // A função RPC get_servicos_permitidos já aplica a filtragem hierárquica
-      // Filtrar serviços para hoje
-      const todayServices = servicosData.filter(
-        (servico: Servico) => servico.dataPlanejada === today
-      );
-
-      setServicos(todayServices);
     } catch (error) {
+      console.error('❌ [OFFLINE DEBUG] Erro em loadData:', error);
       const errorMessage = isConnected 
         ? 'Falha ao carregar dados do servidor'
         : 'Falha ao carregar dados offline. Verifique se os dados foram sincronizados anteriormente.';
@@ -79,6 +121,14 @@ export default function ServicesScreen() {
     timestampField?: string
   ) => {
     try {
+      console.log('🔄 [OFFLINE DEBUG] Iniciando updateServiceStatus');
+      console.log('📋 [OFFLINE DEBUG] Parâmetros recebidos:', {
+        servicoId,
+        status,
+        timestampField,
+        isConnected
+      });
+
       const updateData: any = { status };
       
       if (timestampField) {
@@ -87,6 +137,8 @@ export default function ServicesScreen() {
         
         // Preserve existing timestamps
         const currentService = servicos.find(s => s.id === servicoId);
+        console.log('🔍 [OFFLINE DEBUG] Serviço atual encontrado:', currentService);
+        
         if (currentService) {
           updateData.timestamps = {
             ...currentService.timestamps,
@@ -95,17 +147,25 @@ export default function ServicesScreen() {
         }
       }
 
+      console.log('📦 [OFFLINE DEBUG] Dados para atualização:', updateData);
+
       if (isConnected) {
+        console.log('🌐 [OFFLINE DEBUG] Modo ONLINE - Atualizando no servidor');
         // Online: atualizar diretamente no servidor
         await api.updateServico(servicoId, updateData);
       } else {
+        console.log('📱 [OFFLINE DEBUG] Modo OFFLINE - Atualizando localmente');
         // Offline: usar serviço offline (será sincronizado depois)
         await offlineDataService.updateServico(servicoId, updateData);
+        console.log('✅ [OFFLINE DEBUG] Atualização offline concluída');
       }
       
-      loadData();
+      console.log('🔄 [OFFLINE DEBUG] Recarregando dados...');
+      await loadData();
+      console.log('✅ [OFFLINE DEBUG] Dados recarregados com sucesso');
 
     } catch (error) {
+      console.error('❌ [OFFLINE DEBUG] Erro em updateServiceStatus:', error);
       const errorMessage = isConnected 
         ? 'Falha ao atualizar serviço no servidor'
         : 'Falha ao atualizar serviço offline. A alteração será sincronizada quando houver conexão.';
@@ -258,13 +318,13 @@ export default function ServicesScreen() {
                 <Text style={styles.syncingText}>Sincronizando...</Text>
               </View>
             ) : (
-              <View style={[styles.statusContainer, { backgroundColor: isConnected ? '#10B981' : '#EF4444' }]}>
+              <View style={[styles.statusContainer, { backgroundColor: isConnected ? '#10B981' : 'transparent' }]}>
                 {isConnected ? (
                   <Wifi size={16} color="#FFFFFF" />
                 ) : (
-                  <WifiOff size={16} color="#FFFFFF" />
+                  <WifiOff size={16} color="#EF4444" />
                 )}
-                <Text style={styles.statusText}>
+                <Text style={[styles.statusText, { color: isConnected ? '#FFFFFF' : '#EF4444' }]}>
                   {isConnected ? 'Online' : 'Offline'}
                 </Text>
               </View>

@@ -3,17 +3,30 @@
 
 import { Colaborador, Equipe, Servico, GrupoItem, GIServico, ServicoHeader, ComposicaoEquipe } from '@/types/types';
 import { supabase } from './supabase';
+import { NetworkService } from './offline/NetworkService';
+import { OfflineDataService } from './offline/OfflineDataService';
+
+const offlineDataService = new OfflineDataService();
 
 export const api = {
   // Colaboradores
   getColaboradores: async () => {
-    const { data, error } = await supabase
-      .from('colaboradores')
-      .select('*')
-      .order('nome');
-    
-    if (error) throw error;
-    return data as Colaborador[];
+    if (await NetworkService.isConnected()) {
+      try {
+        const { data, error } = await supabase
+          .from('colaboradores')
+          .select('*')
+          .order('nome');
+        
+        if (error) throw error;
+        return data as Colaborador[];
+      } catch (error) {
+        console.error('Erro ao buscar colaboradores online, tentando offline:', error);
+        return await offlineDataService.getColaboradores(); // Assuming getColaboradores exists in OfflineDataService
+      }
+    } else {
+      return await offlineDataService.getColaboradores(); // Assuming getColaboradores exists in OfflineDataService
+    }
   },
 
   // ========================================
@@ -22,39 +35,72 @@ export const api = {
   
   // Buscar todos os grupos e itens
   getGrupoItens: async () => {
-    const { data, error } = await supabase
-      .from('grupo_itens')
-      .select('*')
-      .order('grupo', { ascending: true })
-      .order('item', { ascending: true });
-    
-    if (error) throw error;
-    return data as GrupoItem[];
+    if (await NetworkService.isConnected()) {
+      try {
+        const { data, error } = await supabase
+          .from('grupo_itens')
+          .select('*')
+          .order('grupo', { ascending: true })
+          .order('item', { ascending: true });
+        
+        if (error) throw error;
+        return data as GrupoItem[];
+      } catch (error) {
+        console.error('Erro ao buscar grupo de itens online, tentando offline:', error);
+        return await offlineDataService.getGrupoItens();
+      }
+    } else {
+      return await offlineDataService.getGrupoItens();
+    }
   },
   
   // Buscar itens por grupo
   getItensByGrupo: async (grupo: string) => {
-    const { data, error } = await supabase
-      .from('grupo_itens')
-      .select('*')
-      .eq('grupo', grupo)
-      .order('item', { ascending: true });
-    
-    if (error) throw error;
-    return data as GrupoItem[];
+    if (await NetworkService.isConnected()) {
+      try {
+        const { data, error } = await supabase
+          .from('grupo_itens')
+          .select('*')
+          .eq('grupo', grupo)
+          .order('item', { ascending: true });
+        
+        if (error) throw error;
+        return data as GrupoItem[];
+      } catch (error) {
+        console.error('Erro ao buscar itens por grupo online, tentando offline:', error);
+        // Assuming getItensByGrupo exists in OfflineDataService
+        return await offlineDataService.getGrupoItens().then(items => items.filter((item: any) => item.grupo === grupo));
+      }
+    } else {
+      // Assuming getItensByGrupo exists in OfflineDataService
+      return await offlineDataService.getGrupoItens().then(items => items.filter((item: any) => item.grupo === grupo));
+    }
   },
   
   // Buscar grupos únicos
   getGrupos: async () => {
-    const { data, error } = await supabase
-      .from('grupo_itens')
-      .select('grupo')
-      .order('grupo', { ascending: true });
-    
-    if (error) throw error;
-    // Retornar apenas valores únicos
-    const grupos = [...new Set(data.map(item => item.grupo))];
-    return grupos;
+    if (await NetworkService.isConnected()) {
+      try {
+        const { data, error } = await supabase
+          .from('grupo_itens')
+          .select('grupo')
+          .order('grupo', { ascending: true });
+        
+        if (error) throw error;
+        // Retornar apenas valores únicos
+        const grupos = [...new Set(data.map(item => item.grupo))];
+        return grupos;
+      } catch (error) {
+        console.error('Erro ao buscar grupos online, tentando offline:', error);
+        // Assuming getGrupos exists in OfflineDataService
+        const offlineGroups = await offlineDataService.getGrupoItens();
+        return [...new Set(offlineGroups.map(item => item.grupo))];
+      }
+    } else {
+      // Assuming getGrupos exists in OfflineDataService
+      const offlineGroups = await offlineDataService.getGrupoItens();
+      return [...new Set(offlineGroups.map(item => item.grupo))];
+    }
   },
   
   // Criar novo item
@@ -99,39 +145,66 @@ export const api = {
   
   // Buscar cabeçalho por serviço
   getServicoHeader: async (servicoId: number) => {
-    const { data, error } = await supabase
-      .from('servico_header')
-      .select('*')
-      .eq('servico_id', servicoId)
-      .single();
-    
-    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = not found
-    return data;
+    if (await NetworkService.isConnected()) {
+      try {
+        const { data, error } = await supabase
+          .from('servico_header')
+          .select('*')
+          .eq('servico_id', servicoId)
+          .single();
+        
+        if (error && error.code !== 'PGRST116') throw error; // PGRST116 = not found
+        return data;
+      } catch (error) {
+        console.error('Erro ao buscar cabeçalho de serviço online, tentando offline:', error);
+        return await offlineDataService.getServicoHeader(servicoId);
+      }
+    } else {
+      return await offlineDataService.getServicoHeader(servicoId);
+    }
   },
   
   // Criar cabeçalho de serviço
   createServicoHeader: async (header: any) => {
-    const { data, error } = await supabase
-      .from('servico_header')
-      .insert(header)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data;
+    if (await NetworkService.isConnected()) {
+      try {
+        const { data, error } = await supabase
+          .from('servico_header')
+          .insert(header)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Erro ao criar cabeçalho de serviço online, tentando offline:', error);
+        return await offlineDataService.createServicoHeader(header);
+      }
+    } else {
+      return await offlineDataService.createServicoHeader(header);
+    }
   },
   
   // Atualizar cabeçalho de serviço
   updateServicoHeader: async (servicoId: number, header: any) => {
-    const { data, error } = await supabase
-      .from('servico_header')
-      .update(header)
-      .eq('servico_id', servicoId)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data;
+    if (await NetworkService.isConnected()) {
+      try {
+        const { data, error } = await supabase
+          .from('servico_header')
+          .update(header)
+          .eq('servico_id', servicoId)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Erro ao atualizar cabeçalho de serviço online, tentando offline:', error);
+        return await offlineDataService.updateServicoHeader(servicoId, header);
+      }
+    } else {
+      return await offlineDataService.updateServicoHeader(servicoId, header);
+    }
   },
   
   // Criar ou atualizar cabeçalho (upsert)
@@ -177,31 +250,51 @@ export const api = {
   },
 
   getGIServicosByServico: async (servicoId: number) => {
-    const { data, error } = await supabase
-      .from('giservico')
-      .select(`
-        *,
-        item:grupo_itens(*)
-      `)
-      .eq('id_servico', servicoId)
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    return data;
+    if (await NetworkService.isConnected()) {
+      try {
+        const { data, error } = await supabase
+          .from('giservico')
+          .select(`
+            *,
+            item:grupo_itens(*)
+          `)
+          .eq('id_servico', servicoId)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Erro ao buscar GI Serviços por serviço online, tentando offline:', error);
+        return await offlineDataService.getGIServicosByServico(servicoId);
+      }
+    } else {
+      return await offlineDataService.getGIServicosByServico(servicoId);
+    }
   },
 
   getGIServicosByItem: async (itemId: number) => {
-    const { data, error } = await supabase
-      .from('giservico')
-      .select(`
-        *,
-        servico:servicos(*)
-      `)
-      .eq('id_item', itemId)
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    return data;
+    if (await NetworkService.isConnected()) {
+      try {
+        const { data, error } = await supabase
+          .from('giservico')
+          .select(`
+            *,
+            servico:servicos(*)
+          `)
+          .eq('id_item', itemId)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('Erro ao buscar GI Serviços por item online, tentando offline:', error);
+        // Assuming getGIServicosByItem exists in OfflineDataService
+        return await offlineDataService.getGIServicosByServico(itemId).then(gis => gis.filter((gi: any) => gi.id_item === itemId));
+      }
+    } else {
+      // Assuming getGIServicosByItem exists in OfflineDataService
+      return await offlineDataService.getGIServicosByServico(itemId).then(gis => gis.filter((gi: any) => gi.id_item === itemId));
+    }
   },
 
   getGIServicosByStatus: async (status: 'Instalado' | 'Retirado') => {
@@ -381,6 +474,49 @@ export const api = {
     }));
     
     return equipes as Equipe[];
+  },
+
+  getEquipesByEncarregado: async (encarregadoMatricula: string) => {
+    if (await NetworkService.isConnected()) {
+      try {
+        const { data: equipesData, error: equipesError } = await supabase
+          .from('vw_equipes_com_matriculas')
+          .select('*')
+          .eq('encarregado_matricula', encarregadoMatricula);
+        
+        if (equipesError) throw equipesError;
+
+        // Para cada equipe, buscar sua composição
+        const equipes = await Promise.all(equipesData.map(async (equipe) => {
+          const { data: composicaoData, error: composicaoError } = await supabase
+            .from('composicao_equipe')
+            .select('colaborador_matricula')
+            .eq('equipe_id', equipe.id);
+          
+          if (composicaoError) throw composicaoError;
+          
+          // Converter para o formato esperado pela aplicação
+          const composicao = composicaoData.map(item => ({
+            colaboradorMatricula: item.colaborador_matricula
+          }));
+
+          return {
+            ...equipe,
+            prefixo: equipe.prefixo,
+            encarregadoMatricula: equipe.encarregado_matricula,
+            statusComposicao: equipe.status_composicao,
+            composicao
+          };
+        }));
+        
+        return equipes as Equipe[];
+      } catch (error) {
+        console.error('Erro ao buscar equipes do encarregado online, tentando offline:', error);
+        return await offlineDataService.getEquipesByEncarregado(encarregadoMatricula);
+      }
+    } else {
+      return await offlineDataService.getEquipesByEncarregado(encarregadoMatricula);
+    }
   },
 
   updateEquipe: async (id: number, data: any) => {

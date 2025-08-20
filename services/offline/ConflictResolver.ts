@@ -125,6 +125,36 @@ export class ConflictResolver {
 
   static async logConflict(conflict: any) {
     // Salvar log do conflito para auditoria
+    const { getLocalDatabase, safeRunAsync } = await import('./database'); // Import dynamically to avoid circular dependency
+    const db = await getLocalDatabase();
+    try {
+      await safeRunAsync(db,
+        `CREATE TABLE IF NOT EXISTS conflict_log (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          table_name TEXT NOT NULL,
+          record_id TEXT NOT NULL,
+          resolution TEXT NOT NULL,
+          local_data TEXT,
+          remote_data TEXT,
+          resolved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`
+      );
 
+      await safeRunAsync(db,
+        `INSERT INTO conflict_log (table_name, record_id, resolution, local_data, remote_data, resolved_at) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          conflict.tableName,
+          conflict.recordId,
+          conflict.resolution,
+          JSON.stringify(conflict.loser),
+          JSON.stringify(conflict.winner),
+          new Date().toISOString()
+        ]
+      );
+      console.log('Conflito logado com sucesso:', conflict);
+    } catch (error) {
+      console.error('Erro ao logar conflito:', error);
+    }
   }
 }

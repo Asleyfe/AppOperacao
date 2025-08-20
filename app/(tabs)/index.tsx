@@ -17,9 +17,13 @@ import ConfirmShiftStartModal from '@/components/ConfirmShiftStartModal'; // Imp
 import { supabase } from '@/services/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { router } from 'expo-router';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { OfflineDataService } from '@/services/offline/OfflineDataService';
 
 export default function TeamScreen() {
   const { colaborador } = useAuth();
+  const { isConnected } = useNetworkStatus();
+  const offlineDataService = new OfflineDataService();
   const [currentTeam, setCurrentTeam] = useState<Equipe | null>(null);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -47,10 +51,21 @@ export default function TeamScreen() {
     }
     
     try {
-      const [equipesData, colaboradoresData] = await Promise.all([
-        api.getEquipes(),
-        api.getColaboradores()
-      ]);
+      let equipesData, colaboradoresData;
+      
+      if (isConnected) {
+        // Online: usar API normal
+        [equipesData, colaboradoresData] = await Promise.all([
+          api.getEquipes(),
+          api.getColaboradores()
+        ]);
+      } else {
+        // Offline: usar dados locais
+        [equipesData, colaboradoresData] = await Promise.all([
+          offlineDataService.getEquipes(),
+          offlineDataService.getColaboradores()
+        ]);
+      }
 
       setColaboradores(colaboradoresData);
       
@@ -60,8 +75,8 @@ export default function TeamScreen() {
       );
       setCurrentTeam(teamToday || null);
       
-      // Check if shift has already been started for today
-      if (teamToday) {
+      // Check if shift has already been started for today (only when online)
+      if (teamToday && isConnected) {
         try {
           const turnoExiste = await api.checkHistoricoTurnoExists({
             colaborador_matricula: colaborador.matricula,
@@ -75,9 +90,10 @@ export default function TeamScreen() {
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
-      Alert.alert(
-        'Erro', 
-        'Falha ao carregar dados. Verifique sua conexão com a internet e tente novamente.',
+      const errorMessage = isConnected 
+        ? 'Falha ao carregar dados do servidor. Verifique sua conexão com a internet e tente novamente.'
+        : 'Falha ao carregar dados offline. Verifique se os dados foram sincronizados anteriormente.';
+      Alert.alert('Erro', errorMessage,
         [
           { text: 'Tentar novamente', onPress: () => loadData() },
           { text: 'OK' }
@@ -159,56 +175,60 @@ export default function TeamScreen() {
   };
 
   const handleLogout = async () => {
-    // Para web, usar confirm nativo do browser
-    if (typeof window !== 'undefined') {
-      const confirmed = window.confirm('Tem certeza que deseja sair do aplicativo?');
-      if (!confirmed) return;
-      
-      try {
-        await supabase.auth.signOut();
-        // O redirecionamento será feito automaticamente pelo _layout.tsx
-      } catch (error) {
-        console.error('Erro ao fazer logout:', error);
-        window.alert('Não foi possível fazer logout.');
-      }
-    } else {
-      // Para mobile, usar Alert nativo
-      Alert.alert(
-        'Confirmar Logout',
-        'Tem certeza que deseja sair do aplicativo?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Sair',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await supabase.auth.signOut();
-                // O redirecionamento será feito automaticamente pelo _layout.tsx
-                // quando o estado de autenticação mudar
-              } catch (error) {
-                console.error('Erro ao fazer logout:', error);
-                Alert.alert('Erro', 'Não foi possível fazer logout.');
-              }
+    console.log('🔄 Botão de logout pressionado');
+    
+    // Usar Alert nativo do React Native (funciona tanto no mobile quanto no web)
+    Alert.alert(
+      'Confirmar Logout',
+      'Tem certeza que deseja sair do aplicativo?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sair',
+          style: 'destructive',
+          onPress: async () => {
+            console.log('✅ Usuário confirmou logout');
+            try {
+              console.log('🔄 Iniciando processo de logout...');
+              // Primeiro redirecionar para a tela de login para evitar erros com BackHandler
+              router.replace('/login');
+              // Depois fazer o logout efetivo
+              await supabase.auth.signOut();
+              console.log('✅ Logout realizado com sucesso');
+            } catch (error) {
+              console.error('❌ Erro ao fazer logout:', error);
+              Alert.alert('Erro', 'Não foi possível fazer logout.');
             }
           }
-        ]
-      );
-    }
+        }
+      ]
+    );
   };
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <View>
+          <View style={styles.headerInfo}>
             <Text style={styles.title}>Gestão de Equipe</Text>
             <Text style={styles.subtitle}>
-              {colaborador ? `${colaborador.nome} - ${colaborador.funcao}` : 'Carregando...'}
+              {colaborador ? colaborador.nome : 'Carregando...'}
+            </Text>
+            <Text style={styles.functionText}>
+              {colaborador ? colaborador.funcao : ''}
             </Text>
           </View>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <LogOut size={24} color="#FFFFFF" />
+          <TouchableOpacity 
+            style={styles.logoutButton} 
+            onPress={() => {
+              console.log('🔄 TouchableOpacity pressionado - evento capturado');
+              handleLogout();
+            }}
+            activeOpacity={0.7}
+            hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+          >
+            <LogOut size={20} color="#FFFFFF" />
+            <Text style={styles.logoutText}>Sair</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -329,13 +349,35 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  functionText: {
+    fontSize: 14,
+    color: '#DBEAFE',
+    marginTop: 4,
   },
   logoutButton: {
-    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    paddingHorizontal: 16,
     borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignSelf: 'flex-start',
+    minWidth: 80,
+    minHeight: 44,
+    justifyContent: 'center',
+    zIndex: 999,
+  },
+  logoutText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
   },
   title: {
     fontSize: 28,

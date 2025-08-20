@@ -14,12 +14,12 @@ import React from 'react';
      }
      
      if (!isConnected) {
-       return (
-         <View style={[styles.statusBar, styles.offline]}>
-           <Text style={styles.statusText}>📱 Modo Offline - Dados serão sincronizados quando houver conexão</Text>
-         </View>
-       );
-     }
+    return (
+      <View style={styles.statusBar}>
+        <Text style={[styles.statusText, styles.offlineText]}>📱 Offline - Dados serão sincronizados quando houver conexão</Text>
+      </View>
+    );
+  }
      
      return null; // Não mostrar nada quando online
    };
@@ -29,10 +29,9 @@ import React from 'react';
        padding: 8,
        alignItems: 'center',
      },
-     offline: {
-       backgroundColor: '#FFF3CD',
-       borderColor: '#FFEAA7',
-     },
+     offlineText: {
+    color: '#EF4444',
+  },
      syncing: {
        backgroundColor: '#D1ECF1',
        borderColor: '#BEE5EB',

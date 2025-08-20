@@ -16,15 +16,16 @@ export function useAuth(): AuthState {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar sessão atual
-    checkSession();
+    // Verificar sessão atual de forma otimizada
+    checkSessionOptimized();
 
     // Escutar mudanças na autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session?.user) {
           setUser(session.user);
-          await loadColaborador(session.user.id);
+          // Carregar colaborador em background para não bloquear a UI
+          loadColaborador(session.user.id);
         } else {
           setUser(null);
           setColaborador(null);
@@ -37,6 +38,28 @@ export function useAuth(): AuthState {
       subscription.unsubscribe();
     };
   }, []);
+
+  const checkSessionOptimized = async () => {
+    try {
+      // Verificação rápida da sessão sem bloquear a UI
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUser(session.user);
+        // Carregar colaborador em background
+        loadColaborador(session.user.id);
+      } else {
+        setUser(null);
+        setColaborador(null);
+      }
+      // Definir loading como false imediatamente para não bloquear a UI
+      setLoading(false);
+    } catch (error) {
+      console.error('Erro ao verificar sessão:', error);
+      setUser(null);
+      setColaborador(null);
+      setLoading(false);
+    }
+  };
 
   const checkSession = async () => {
     try {
