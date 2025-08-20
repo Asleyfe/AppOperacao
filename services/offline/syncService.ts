@@ -5,6 +5,12 @@ import { supabase } from '../supabase';
      // Sincronizar dados do servidor para local
     async syncFromServer(colaboradorMatricula?: string) {
       try {
+        if (!colaboradorMatricula) {
+          console.log('⚠️ [SYNC] Sincronização executada sem matrícula do colaborador - TODOS OS DADOS serão sincronizados');
+        } else {
+          console.log('🎯 [SYNC] Sincronização filtrada para colaborador:', colaboradorMatricula);
+        }
+        
         console.log(`🔄 [SYNC] Iniciando sincronização - Encarregado: ${colaboradorMatricula || 'TODOS OS DADOS'}`);
          // Buscar dados do Supabase
          const { data: colaboradores } = await supabase

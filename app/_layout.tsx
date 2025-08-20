@@ -53,11 +53,16 @@ export default function RootLayout() {
     setTimeout(initializeOfflineServices, 100);
   }, []);
 
-  // Configurar matrícula do colaborador no NetworkService
+  // Configurar matrícula do colaborador no NetworkService e executar sincronização inicial
   useEffect(() => {
     if (colaborador?.matricula) {
       NetworkService.setColaboradorMatricula(colaborador.matricula);
       console.log('✅ Matrícula do colaborador configurada no NetworkService:', colaborador.matricula);
+      
+      // Executar sincronização inicial após login
+      NetworkService.syncAfterLogin().catch(error => {
+        console.error('Erro na sincronização inicial:', error);
+      });
     } else {
       NetworkService.setColaboradorMatricula(null);
     }
