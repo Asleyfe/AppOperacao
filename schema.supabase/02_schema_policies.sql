@@ -1,19 +1,33 @@
 -- =============================================
 -- POLÍTICAS RLS ATUALIZADAS DO BANCO DE DADOS
--- Gerado automaticamente em: 2025-01-27
+-- Gerado automaticamente em: 2025-08-21
 -- =============================================
 
--- Habilitar RLS em todas as tabelas
+-- Habilitar RLS nas tabelas com RLS ativo
 ALTER TABLE colaboradores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE composicao_equipe ENABLE ROW LEVEL SECURITY;
 ALTER TABLE equipes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE execucoes_colaborador ENABLE ROW LEVEL SECURITY;
-ALTER TABLE grupo_itens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE historico_turno ENABLE ROW LEVEL SECURITY;
-ALTER TABLE servico_header ENABLE ROW LEVEL SECURITY;
 ALTER TABLE servicos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE giservico ENABLE ROW LEVEL SECURITY;
-ALTER TABLE valores_faturamento_real ENABLE ROW LEVEL SECURITY;
+
+-- Desabilitar RLS nas tabelas com RLS inativo
+ALTER TABLE grupo_itens DISABLE ROW LEVEL SECURITY;
+ALTER TABLE giservico DISABLE ROW LEVEL SECURITY;
+ALTER TABLE servico_header DISABLE ROW LEVEL SECURITY;
+ALTER TABLE valores_faturamento_real DISABLE ROW LEVEL SECURITY;
+
+-- =============================================
+-- TABELAS COM RLS DESATIVADO
+-- =============================================
+-- As seguintes tabelas têm o Row Level Security (RLS) desativado:
+-- - grupo_itens
+-- - giservico
+-- - servico_header
+-- - valores_faturamento_real
+-- Isso significa que todas as operações (SELECT, INSERT, UPDATE, DELETE)
+-- nessas tabelas não serão filtradas ou controladas por políticas RLS,
+-- e o acesso será determinado apenas pelas permissões de nível de banco de dados.
 
 -- =============================================
 -- POLÍTICAS PARA TABELA: colaboradores
@@ -217,30 +231,9 @@ CREATE POLICY "execucoes_colaborador_supervisor_read" ON execucoes_colaborador
 
 -- =============================================
 -- POLÍTICAS PARA TABELA: grupo_itens
+-- RLS DESATIVADO
 -- =============================================
-
--- Política: grupo_itens_admin_all
--- Permite que administradores gerenciem todos os grupos e itens
-CREATE POLICY "grupo_itens_admin_all" ON grupo_itens
-    AS PERMISSIVE FOR ALL
-    TO authenticated
-    USING (is_admin())
-    WITH CHECK (is_admin());
-
--- Política: grupo_itens_authenticated_read
--- Permite que usuários autenticados vejam grupos e itens
-CREATE POLICY "grupo_itens_authenticated_read" ON grupo_itens
-    AS PERMISSIVE FOR SELECT
-    TO authenticated
-    USING (is_authenticated());
-
--- Política: grupo_itens_coordenador_all
--- Permite que coordenadores gerenciem todos os grupos e itens
-CREATE POLICY "grupo_itens_coordenador_all" ON grupo_itens
-    AS PERMISSIVE FOR ALL
-    TO authenticated
-    USING (is_coordenador())
-    WITH CHECK (is_coordenador());
+-- Nenhuma política RLS ativa para esta tabela.
 
 -- =============================================
 -- POLÍTICAS PARA TABELA: historico_turno
@@ -298,52 +291,9 @@ CREATE POLICY "historico_turno_supervisor_read" ON historico_turno
 
 -- =============================================
 -- POLÍTICAS PARA TABELA: servico_header
+-- RLS DESATIVADO
 -- =============================================
-
--- Política: servico_header_admin_all
--- Permite que administradores gerenciem todos os cabeçalhos de serviços
-CREATE POLICY "servico_header_admin_all" ON servico_header
-    AS PERMISSIVE FOR ALL
-    TO authenticated
-    USING (is_admin())
-    WITH CHECK (is_admin());
-
--- Política: servico_header_coordenador_all
--- Permite que coordenadores gerenciem todos os cabeçalhos de serviços
-CREATE POLICY "servico_header_coordenador_all" ON servico_header
-    AS PERMISSIVE FOR ALL
-    TO authenticated
-    USING (is_coordenador())
-    WITH CHECK (is_coordenador());
-
--- Política: servico_header_encarregado_equipe
--- Permite que encarregados gerenciem cabeçalhos de suas equipes
-CREATE POLICY "servico_header_encarregado_equipe" ON servico_header
-    AS PERMISSIVE FOR ALL
-    TO authenticated
-    USING (
-        is_encarregado() AND equipe_prefixo IN (
-            SELECT e.prefixo
-            FROM equipes e
-            JOIN colaboradores c ON e.encarregado_matricula = c.matricula
-            WHERE c.user_id = auth.uid()
-        )
-    )
-    WITH CHECK (
-        is_encarregado() AND equipe_prefixo IN (
-            SELECT e.prefixo
-            FROM equipes e
-            JOIN colaboradores c ON e.encarregado_matricula = c.matricula
-            WHERE c.user_id = auth.uid()
-        )
-    );
-
--- Política: servico_header_supervisor_read
--- Permite que supervisores vejam todos os cabeçalhos de serviços
-CREATE POLICY "servico_header_supervisor_read" ON servico_header
-    AS PERMISSIVE FOR SELECT
-    TO authenticated
-    USING (is_supervisor());
+-- Nenhuma política RLS ativa para esta tabela.
 
 -- =============================================
 -- POLÍTICAS PARA TABELA: servicos
@@ -412,97 +362,15 @@ CREATE POLICY "servicos_supervisor_read" ON servicos
 
 -- =============================================
 -- POLÍTICAS PARA TABELA: giservico
+-- RLS DESATIVADO
 -- =============================================
-
--- Política: giservico_admin_all
--- Permite que administradores gerenciem todos os itens de serviços
-CREATE POLICY "giservico_admin_all" ON giservico
-    AS PERMISSIVE FOR ALL
-    TO authenticated
-    USING (is_admin())
-    WITH CHECK (is_admin());
-
--- Política: giservico_coordenador_all
--- Permite que coordenadores gerenciem todos os itens de serviços
-CREATE POLICY "giservico_coordenador_all" ON giservico
-    AS PERMISSIVE FOR ALL
-    TO authenticated
-    USING (is_coordenador())
-    WITH CHECK (is_coordenador());
-
--- Política: giservico_encarregado_equipe
--- Permite que encarregados gerenciem itens de serviços de suas equipes
-CREATE POLICY "giservico_encarregado_equipe" ON giservico
-    AS PERMISSIVE FOR ALL
-    TO authenticated
-    USING (
-        is_encarregado() AND (
-            prefixo IN (
-                SELECT e.prefixo
-                FROM equipes e
-                JOIN colaboradores c ON e.encarregado_matricula = c.matricula
-                WHERE c.user_id = auth.uid()
-            )
-            OR id_servico IN (
-                SELECT s.id
-                FROM servicos s
-                JOIN equipes e ON s.equipe_id = e.id
-                JOIN colaboradores c ON e.encarregado_matricula = c.matricula
-                WHERE c.user_id = auth.uid()
-            )
-        )
-    )
-    WITH CHECK (
-        is_encarregado() AND (
-            prefixo IN (
-                SELECT e.prefixo
-                FROM equipes e
-                JOIN colaboradores c ON e.encarregado_matricula = c.matricula
-                WHERE c.user_id = auth.uid()
-            )
-            OR id_servico IN (
-                SELECT s.id
-                FROM servicos s
-                JOIN equipes e ON s.equipe_id = e.id
-                JOIN colaboradores c ON e.encarregado_matricula = c.matricula
-                WHERE c.user_id = auth.uid()
-            )
-        )
-    );
-
--- Política: giservico_supervisor_read
--- Permite que supervisores vejam todos os itens de serviços
-CREATE POLICY "giservico_supervisor_read" ON giservico
-    AS PERMISSIVE FOR SELECT
-    TO authenticated
-    USING (is_supervisor());
+-- Nenhuma política RLS ativa para esta tabela.
 
 -- =============================================
 -- POLÍTICAS PARA TABELA: valores_faturamento_real
+-- RLS DESATIVADO
 -- =============================================
-
--- Política: valores_faturamento_real_admin_all
--- Permite que administradores gerenciem todos os valores de faturamento
-CREATE POLICY "valores_faturamento_real_admin_all" ON valores_faturamento_real
-    AS PERMISSIVE FOR ALL
-    TO authenticated
-    USING (is_admin())
-    WITH CHECK (is_admin());
-
--- Política: valores_faturamento_real_authenticated_read
--- Permite que usuários autenticados vejam valores de faturamento
-CREATE POLICY "valores_faturamento_real_authenticated_read" ON valores_faturamento_real
-    AS PERMISSIVE FOR SELECT
-    TO authenticated
-    USING (is_authenticated());
-
--- Política: valores_faturamento_real_coordenador_all
--- Permite que coordenadores gerenciem todos os valores de faturamento
-CREATE POLICY "valores_faturamento_real_coordenador_all" ON valores_faturamento_real
-    AS PERMISSIVE FOR ALL
-    TO authenticated
-    USING (is_coordenador())
-    WITH CHECK (is_coordenador());
+-- Nenhuma política RLS ativa para esta tabela.
 
 -- =============================================
 -- COMENTÁRIOS SOBRE AS POLÍTICAS
@@ -528,4 +396,4 @@ CREATE POLICY "valores_faturamento_real_coordenador_all" ON valores_faturamento_
 -- - Políticas são específicas por operação (SELECT, INSERT, UPDATE, DELETE)
 -- - Verificações de permissão são baseadas na função do colaborador
 
--- Última atualização: 2025-01-27
+-- Última atualização: 2025-08-21
