@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/services/supabase';
 import { User } from '@supabase/supabase-js';
 import { Colaborador } from '@/types/types';
+import { SyncService } from '@/services/offline/syncService';
 
 export interface AuthState {
   user: User | null;
@@ -94,6 +95,18 @@ export function useAuth(): AuthState {
         return;
       };
       setColaborador(data);
+
+      // Disparar a sincronização inicial em segundo plano após o login
+      if (data && data.matricula) {
+        console.log(`[Auth] Colaborador ${data.matricula} carregado. Iniciando sincronização de dados offline...`);
+        const syncService = new SyncService();
+        // Não usar await aqui para não bloquear a UI
+        syncService.syncFromServer(data.matricula).then(() => {
+          console.log(`[Auth] Sincronização inicial para ${data.matricula} concluída.`);
+        }).catch(syncError => {
+          console.error(`[Auth] Erro na sincronização inicial para ${data.matricula}:`, syncError);
+        });
+      }
     } catch (error) {
       console.error('Erro ao carregar colaborador:', error);
       setColaborador(null);
