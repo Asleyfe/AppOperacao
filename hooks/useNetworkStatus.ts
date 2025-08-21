@@ -6,13 +6,14 @@ import { useState, useEffect } from 'react';
      const [isSyncing, setIsSyncing] = useState(false);
      
      useEffect(() => {
+       // Listener para mudanças de conectividade
        NetworkService.addListener((connected) => {
          setIsConnected(connected);
-         if (connected) {
-           setIsSyncing(true);
-           // Simular tempo de sincronização
-           setTimeout(() => setIsSyncing(false), 3000);
-         }
+       });
+       
+       // Listener para mudanças no status de sincronização
+       NetworkService.addSyncListener((syncing) => {
+         setIsSyncing(syncing);
        });
      }, []);
      

@@ -9,4 +9,7 @@ export interface IDataService {
      createServicoHeader(header: any): Promise<any>;
      updateServicoHeader(servicoId: number, header: any): Promise<any>;
      getGIServicosByServico(servicoId: number): Promise<any[]>;
+     // Métodos para histórico de turno
+     checkHistoricoTurnoExists(data: { colaborador_matricula: number; equipe_prefixo: string; data_turno: string; }): Promise<boolean>;
+     createHistoricoTurno(data: { colaborador_matricula: number; equipe_prefixo: string; data_turno: string; hora_inicio: string; tipo_turno?: string; observacoes?: string; }): Promise<any>;
    }

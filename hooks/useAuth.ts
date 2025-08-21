@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/services/supabase';
 import { User } from '@supabase/supabase-js';
 import { Colaborador } from '@/types/types';
+import { NetworkService } from '@/services/offline/NetworkService';
+import { OfflineDataService } from '@/services/offline/OfflineDataService';
 
 export interface AuthState {
   user: User | null;
@@ -82,20 +84,52 @@ export function useAuth(): AuthState {
 
   const loadColaborador = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('colaboradores')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
+      // Verificar se há conexão de rede
+      const isConnected = NetworkService.isConnected();
+      
+      if (isConnected) {
+        // Online: tentar carregar do Supabase
+        const { data, error } = await supabase
+          .from('colaboradores')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
 
-      if (error) {
-        console.error('Erro ao carregar colaborador:', error);
-        setColaborador(null);
-        return;
-      };
-      setColaborador(data);
+        if (error) {
+          console.error('Erro ao carregar colaborador online:', error);
+          // Se falhar online, tentar offline como fallback
+          await loadColaboradorOffline(userId);
+          return;
+        }
+        setColaborador(data);
+      } else {
+        // Offline: carregar dados locais
+        await loadColaboradorOffline(userId);
+      }
     } catch (error) {
       console.error('Erro ao carregar colaborador:', error);
+      // Tentar fallback offline em caso de erro de rede
+      await loadColaboradorOffline(userId);
+    }
+  };
+
+  const loadColaboradorOffline = async (userId: string) => {
+    try {
+      const offlineDataService = new OfflineDataService();
+      const colaboradores = await offlineDataService.getColaboradores();
+      
+      // Buscar colaborador por user_id nos dados offline
+      const colaboradorOffline = colaboradores.find(c => c.user_id === userId);
+      
+      if (colaboradorOffline) {
+        setColaborador(colaboradorOffline);
+        console.log('✅ Colaborador carregado offline:', colaboradorOffline.matricula);
+      } else {
+        console.warn('⚠️ Colaborador não encontrado nos dados offline');
+        setColaborador(null);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar colaborador offline:', error);
       setColaborador(null);
     }
   };

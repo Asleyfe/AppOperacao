@@ -698,7 +698,15 @@ export const api = {
       if (timestamps.inicioDeslocamento) updateData.inicio_deslocamento = timestamps.inicioDeslocamento;
       if (timestamps.fimDeslocamento) updateData.fim_deslocamento = timestamps.fimDeslocamento;
       if (timestamps.inicioExecucao) updateData.inicio_execucao = timestamps.inicioExecucao;
-      if (timestamps.fimExecucao) updateData.fim_execucao = timestamps.fimExecucao;
+      if (timestamps.fimExecucao) {
+        // Aplicar ajuste de +3 horas para fimExecucao
+        const originalDate = new Date(timestamps.fimExecucao);
+        const adjustedDate = new Date(originalDate.getTime() + (3 * 60 * 60 * 1000)); // +3 horas
+        updateData.fim_execucao = adjustedDate.toISOString();
+        
+        console.log('🕐 [TIMEZONE API] Horário original fimExecucao:', timestamps.fimExecucao);
+        console.log('🕐 [TIMEZONE API] Horário ajustado (+3h):', updateData.fim_execucao);
+      }
     }
     
     const { data: updatedServico, error } = await supabase
@@ -738,19 +746,37 @@ export const api = {
     data_turno: string;
     hora_oper: string; // Assuming HH:MM string, will convert to TIMESTAMPTZ
   }) => {
-    const { data: newRecord, error } = await supabase
-      .from('historico_turno')
-      .insert({
+    if (!(await NetworkService.isConnected())) {
+      return await offlineDataService.createHistoricoTurno({
         colaborador_matricula: data.colaborador_matricula,
         equipe_prefixo: data.equipe_prefixo,
         data_turno: data.data_turno,
-        hora_oper: `${data.data_turno}T${data.hora_oper}:00` // Combine date and time, Supabase will handle timezone if column is TIMESTAMPTZ
-      })
-      .select()
-      .single();
+        hora_inicio: data.hora_oper
+      });
+    }
+    try {
+      const { data: newRecord, error } = await supabase
+        .from('historico_turno')
+        .insert({
+          colaborador_matricula: data.colaborador_matricula,
+          equipe_prefixo: data.equipe_prefixo,
+          data_turno: data.data_turno,
+          hora_oper: `${data.data_turno}T${data.hora_oper}:00` // Combine date and time, Supabase will handle timezone if column is TIMESTAMPTZ
+        })
+        .select()
+        .single();
 
-    if (error) throw error;
-    return newRecord;
+      if (error) throw error;
+      return newRecord;
+    } catch (error) {
+      console.log('🔄 [API] Erro online, tentando offline para createHistoricoTurno:', error);
+      return await offlineDataService.createHistoricoTurno({
+        colaborador_matricula: data.colaborador_matricula,
+        equipe_prefixo: data.equipe_prefixo,
+        data_turno: data.data_turno,
+        hora_inicio: data.hora_oper
+      });
+    }
   },
 
   checkHistoricoTurnoExists: async (data: {
@@ -758,15 +784,23 @@ export const api = {
     equipe_prefixo: string;
     data_turno: string;
   }) => {
-    const { data: existingRecord, error } = await supabase
-      .from('historico_turno')
-      .select('id')
-      .eq('colaborador_matricula', data.colaborador_matricula)
-      .eq('equipe_prefixo', data.equipe_prefixo)
-      .eq('data_turno', data.data_turno)
-      .maybeSingle();
+    if (!(await NetworkService.isConnected())) {
+      return await offlineDataService.checkHistoricoTurnoExists(data);
+    }
+    try {
+      const { data: existingRecord, error } = await supabase
+        .from('historico_turno')
+        .select('id')
+        .eq('colaborador_matricula', data.colaborador_matricula)
+        .eq('equipe_prefixo', data.equipe_prefixo)
+        .eq('data_turno', data.data_turno)
+        .maybeSingle();
 
-    if (error) throw error;
-    return !!existingRecord; // Returns true if record exists, false otherwise
+      if (error) throw error;
+      return !!existingRecord; // Returns true if record exists, false otherwise
+    } catch (error) {
+      console.log('🔄 [API] Erro online, tentando offline para checkHistoricoTurnoExists:', error);
+      return await offlineDataService.checkHistoricoTurnoExists(data);
+    }
   },
 };

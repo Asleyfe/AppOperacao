@@ -34,6 +34,57 @@ export default function ServicesScreen() {
     }
   }, [colaborador]);
 
+  // Recarregar dados quando a sincronização for concluída
+  useEffect(() => {
+    if (colaborador && !isSyncing && isConnected) {
+      console.log('🔄 [SYNC] Sincronização concluída, recarregando dados da tela de serviços');
+      loadDataOffline(); // Forçar carregamento offline após sincronização
+    }
+  }, [isSyncing, colaborador]);
+
+  const loadDataOffline = async () => {
+    try {
+      console.log('📱 [OFFLINE DEBUG] Forçando carregamento OFFLINE após sincronização');
+      console.log('👤 [OFFLINE DEBUG] Colaborador logado:', colaborador?.matricula);
+      console.log('📅 [OFFLINE DEBUG] Data de hoje:', today);
+      
+      // Usar o novo método que filtra por encarregado
+      const servicosData = await offlineDataService.getServicosByEncarregado(
+        colaborador?.matricula || '',
+        today
+      );
+      
+      const equipesData = await offlineDataService.getEquipesByEncarregado(
+        colaborador?.matricula || ''
+      );
+      
+      console.log('📋 [OFFLINE DEBUG] Serviços do encarregado (offline):', servicosData.length);
+      console.log('👥 [OFFLINE DEBUG] Equipes do encarregado (offline):', equipesData.length);
+      
+      // Find team for today with current logged user as encarregado (para compatibilidade)
+      const teamToday = equipesData.find(
+        (equipe: Equipe) => equipe.data === today && equipe.encarregadoMatricula === colaborador?.matricula
+      );
+      console.log('🎯 [OFFLINE DEBUG] Equipe do dia encontrada (offline):', teamToday);
+      setCurrentTeam(teamToday || null);
+
+      // Os serviços já vêm filtrados do método getServicosByEncarregado
+      console.log('✅ [OFFLINE DEBUG] Serviços já filtrados (offline):', servicosData.length);
+      console.log('📋 [OFFLINE DEBUG] Detalhes dos serviços (offline):', servicosData.map(s => ({
+        id: s.id,
+        numero: s.numero,
+        status: s.status,
+        dataPlanejada: s.dataPlanejada,
+        encarregadoId: s.encarregadoId
+      })));
+
+      setServicos(servicosData);
+    } catch (error) {
+      console.error('❌ [OFFLINE DEBUG] Erro em loadDataOffline:', error);
+      Alert.alert('Erro', 'Falha ao carregar dados offline. Verifique se os dados foram sincronizados anteriormente.');
+    }
+  };
+
   const loadData = async () => {
     try {
       console.log('📊 [OFFLINE DEBUG] Iniciando loadData');
@@ -129,11 +180,56 @@ export default function ServicesScreen() {
         isConnected
       });
 
+      // TODO: Implementar validação de turno iniciado no futuro
+      // Verificar se o turno foi iniciado antes de permitir mudanças de status
+      // Só aplicar esta validação para ações que iniciam um serviço
+      /*
+      if (status === 'Em Deslocamento' || (status === 'Aguardando Execução' && timestampField === 'fimDeslocamento')) {
+        const servico = servicos.find(s => s.id === servicoId);
+        if (servico && servico.equipePrefixo && colaborador) {
+          try {
+            const turnoExiste = await api.checkHistoricoTurnoExists({
+              colaborador_matricula: colaborador.matricula,
+              equipe_prefixo: servico.equipePrefixo,
+              data_turno: today
+            });
+            
+            if (!turnoExiste) {
+              Alert.alert(
+                'Turno Não Iniciado',
+                'O serviço só pode ser iniciado após a confirmação do início do turno da equipe.'
+              );
+              return;
+            }
+          } catch (error) {
+            console.error('Erro ao verificar histórico de turno:', error);
+            Alert.alert('Erro', 'Não foi possível verificar o status do turno.');
+            return;
+          }
+        }
+      }
+      */
+
       const updateData: any = { status };
       
       if (timestampField) {
         updateData.timestamps = {};
-        updateData.timestamps[timestampField] = new Date().toISOString();
+        
+        // Criar timestamp com ajuste de fuso horário se necessário
+        let timestamp;
+        if (timestampField === 'fimExecucao') {
+          // Adicionar 3 horas para ajustar ao fuso horário UTC do banco de dados
+          const now = new Date();
+          const adjustedTime = new Date(now.getTime() + (3 * 60 * 60 * 1000)); // +3 horas
+          timestamp = adjustedTime.toISOString();
+          
+          console.log('🕐 [TIMEZONE] Horário original:', now.toISOString());
+          console.log('🕐 [TIMEZONE] Horário ajustado (+3h):', timestamp);
+        } else {
+          timestamp = new Date().toISOString();
+        }
+        
+        updateData.timestamps[timestampField] = timestamp;
         
         // Preserve existing timestamps
         const currentService = servicos.find(s => s.id === servicoId);
@@ -142,7 +238,7 @@ export default function ServicesScreen() {
         if (currentService) {
           updateData.timestamps = {
             ...currentService.timestamps,
-            [timestampField]: new Date().toISOString()
+            [timestampField]: timestamp
           };
         }
       }

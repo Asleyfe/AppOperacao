@@ -104,7 +104,17 @@ export class OfflineDataService implements IDataService {
       }
       if (data.fim_execucao) {
         updateFields.push('fim_execucao = ?');
-        updateValues.push(data.fim_execucao);
+        // Aplicar ajuste de +3 horas para fim_execucao se for um timestamp atual
+        let fimExecucaoValue = data.fim_execucao;
+        if (typeof data.fim_execucao === 'string' && data.fim_execucao.includes('T')) {
+          const originalDate = new Date(data.fim_execucao);
+          const adjustedDate = new Date(originalDate.getTime() + (3 * 60 * 60 * 1000)); // +3 horas
+          fimExecucaoValue = adjustedDate.toISOString();
+          
+          console.log('🕐 [TIMEZONE OFFLINE] Horário original fim_execucao:', data.fim_execucao);
+          console.log('🕐 [TIMEZONE OFFLINE] Horário ajustado (+3h):', fimExecucaoValue);
+        }
+        updateValues.push(fimExecucaoValue);
       }
       
       // Sempre marcar como não sincronizado e atualizar timestamp de modificação
@@ -469,6 +479,74 @@ export class OfflineDataService implements IDataService {
       return servicosMapeados;
     } catch (error) {
       console.error('❌ [OFFLINE DEBUG] Erro ao buscar serviços por encarregado offline:', error);
+      throw error;
+    }
+  }
+
+  // Métodos para histórico de turno
+  async checkHistoricoTurnoExists(data: {
+    colaborador_matricula: number;
+    equipe_prefixo: string;
+    data_turno: string;
+  }): Promise<boolean> {
+    try {
+      const db = await getLocalDatabase();
+      const result = await safeGetFirstAsync(db,
+        `SELECT id FROM historico_turno_local 
+         WHERE colaborador_matricula = ? AND equipe_prefixo = ? AND data_turno = ?`,
+        [data.colaborador_matricula.toString(), data.equipe_prefixo, data.data_turno]
+      );
+      
+      console.log('🔍 [OFFLINE DEBUG] Verificação de turno offline:', {
+        colaborador: data.colaborador_matricula,
+        equipe: data.equipe_prefixo,
+        data: data.data_turno,
+        existe: !!result
+      });
+      
+      return !!result;
+    } catch (error) {
+      console.error('❌ [OFFLINE DEBUG] Erro ao verificar histórico de turno offline:', error);
+      throw error;
+    }
+  }
+
+  async createHistoricoTurno(data: {
+    colaborador_matricula: number;
+    equipe_prefixo: string;
+    data_turno: string;
+    hora_inicio: string;
+    tipo_turno?: string;
+    observacoes?: string;
+  }): Promise<any> {
+    try {
+      const db = await getLocalDatabase();
+      // Criar timestamp compatível com hora_oper (TIMESTAMPTZ)
+      const horaOper = `${data.data_turno}T${data.hora_inicio}:00`;
+      
+      const result = await safeRunAsync(db,
+        `INSERT OR REPLACE INTO historico_turno_local 
+         (colaborador_matricula, equipe_prefixo, data_turno, hora_inicio_turno, hora_oper, synced)
+         VALUES (?, ?, ?, ?, ?, 0)`,
+        [
+          data.colaborador_matricula.toString(),
+          data.equipe_prefixo,
+          data.data_turno,
+          data.hora_inicio,
+          horaOper
+        ]
+      );
+      
+      console.log('✅ [OFFLINE DEBUG] Histórico de turno criado offline:', {
+        id: result.lastInsertRowId,
+        colaborador: data.colaborador_matricula,
+        equipe: data.equipe_prefixo,
+        data: data.data_turno
+      });
+      
+      return { id: result.lastInsertRowId, ...data };
+    } catch (error) {
+      console.error('❌ [OFFLINE DEBUG] Erro ao criar histórico de turno offline:', error);
       throw error;
     }
   }

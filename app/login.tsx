@@ -13,6 +13,7 @@ import {
 import { supabase } from '@/services/supabase';
 import { router } from 'expo-router';
 import { Eye, EyeOff, User, Lock } from 'lucide-react-native';
+import { DataPreloadService } from '@/services/offline/DataPreloadService';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -53,6 +54,16 @@ export default function LoginScreen() {
           );
           await supabase.auth.signOut();
           return;
+        }
+
+        // Carregar dados essenciais para funcionamento offline
+        console.log('📱 Carregando dados para uso offline...');
+        try {
+          await DataPreloadService.preloadEssentialData(colaborador.matricula?.toString());
+          console.log('✅ Dados carregados com sucesso!');
+        } catch (error) {
+          console.error('⚠️ Erro ao carregar dados offline (não crítico):', error);
+          // Não bloquear o login se o carregamento falhar
         }
 
         // Login bem-sucedido, o redirecionamento será feito automaticamente pelo _layout.tsx

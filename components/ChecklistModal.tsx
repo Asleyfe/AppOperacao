@@ -439,8 +439,13 @@ export default function ChecklistModal({
 
           // Create a UTC Date object to ensure consistent timezone handling
           // Month is 0-indexed in JavaScript Date constructor
-          const fimExecucaoDateUTC = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
+          // Adicionar 3 horas para ajustar ao fuso horário UTC do banco de dados
+          const fimExecucaoDateUTC = new Date(Date.UTC(year, month - 1, day, hours + 3, minutes, 0, 0));
           const isoTimestampUTC = fimExecucaoDateUTC.toISOString();
+          
+          console.log('🕐 [TIMEZONE] Horário original:', `${hours}:${minutes}`);
+          console.log('🕐 [TIMEZONE] Horário ajustado (+3h):', `${hours + 3}:${minutes}`);
+          console.log('🕐 [TIMEZONE] Timestamp UTC final:', isoTimestampUTC);
 
           // Atualizar o status_servico na tabela servico_header
           const updatedHeaderData = {
@@ -579,7 +584,7 @@ export default function ChecklistModal({
             automaticallyAdjustContentInsets={false}
             persistentScrollbar={true}
             indicatorStyle="black"
-            scrollIndicatorInsets={{ right: 1 }}
+            scrollIndicatorInsets={{ right: 4 }}
             fadingEdgeLength={50}
             onScroll={(event) => {
               const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -912,13 +917,30 @@ export default function ChecklistModal({
             )}
           </ScrollView>
 
-          {/* Indicador de posição de rolagem */}
+          {/* Barra de rolagem customizada */}
           {showScrollIndicator && (
-            <View style={styles.scrollPosition}>
-              <Text style={styles.scrollPositionText}>
-                {Math.round((scrollPosition / Math.max(contentHeight - scrollViewHeight, 1)) * 100)}%
-              </Text>
-            </View>
+            <>
+              <View style={styles.scrollIndicator}>
+                <View 
+                  style={[
+                    styles.scrollThumb,
+                    {
+                      height: Math.max(
+                        (scrollViewHeight / contentHeight) * scrollViewHeight,
+                        20
+                      ),
+                      top: (scrollPosition / Math.max(contentHeight - scrollViewHeight, 1)) * 
+                           (scrollViewHeight - Math.max((scrollViewHeight / contentHeight) * scrollViewHeight, 20))
+                    }
+                  ]}
+                />
+              </View>
+              <View style={styles.scrollPosition}>
+                <Text style={styles.scrollPositionText}>
+                  {Math.round((scrollPosition / Math.max(contentHeight - scrollViewHeight, 1)) * 100)}%
+                </Text>
+              </View>
+            </>
           )}
 
           <View style={styles.modalFooter}>
@@ -1385,20 +1407,30 @@ const styles = StyleSheet.create({
   },
   scrollIndicator: {
     position: 'absolute',
-    right: 2,
-    top: 0,
-    bottom: 0,
-    width: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    borderRadius: 2,
+    right: 8,
+    top: 20,
+    bottom: 20,
+    width: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+    borderRadius: 3,
+    zIndex: 10,
   },
   scrollThumb: {
     position: 'absolute',
-    right: 2,
-    width: 4,
+    right: 0,
+    width: 6,
     backgroundColor: '#3B82F6',
-    borderRadius: 2,
+    borderRadius: 3,
     minHeight: 20,
+    opacity: 0.8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
   },
   scrollPosition: {
     position: 'absolute',

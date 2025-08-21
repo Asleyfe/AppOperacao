@@ -94,11 +94,22 @@ const createTables = async () => {
       id INTEGER PRIMARY KEY,
       nome TEXT,
       prefixo TEXT UNIQUE NOT NULL,
-      tipo_equipe TEXT NOT NULL,
       status_composicao TEXT DEFAULT 'Pendente',
       encarregado_matricula INTEGER,
       synced BOOLEAN DEFAULT 0,
       last_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  
+  // Composição de Equipes
+  await database.runAsync(`
+    CREATE TABLE IF NOT EXISTS composicao_equipe_local (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      equipe_id INTEGER NOT NULL,
+      colaborador_matricula INTEGER NOT NULL,
+      synced BOOLEAN DEFAULT 0,
+      last_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(equipe_id, colaborador_matricula)
     )
   `);
   
@@ -178,6 +189,22 @@ const createTables = async () => {
       synced BOOLEAN DEFAULT 0,
       last_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
+  `);
+
+  // Histórico de Turno (para validações offline)
+  await database.runAsync(`
+    CREATE TABLE IF NOT EXISTS historico_turno_local (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      colaborador_matricula TEXT NOT NULL,
+      equipe_prefixo TEXT NOT NULL,
+      data_turno DATE NOT NULL,
+      hora_inicio_turno TEXT NOT NULL,
+      hora_oper TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      synced BOOLEAN DEFAULT 0,
+      UNIQUE(colaborador_matricula, equipe_prefixo, data_turno)
+    );
   `);
 
   // Fila de operações para sincronização

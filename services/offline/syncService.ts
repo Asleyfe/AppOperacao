@@ -79,16 +79,16 @@ import { supabase } from '../supabase';
          if (equipes) {
            for (const equipe of equipes) {
              // Validar campos obrigatórios
-             if (!equipe.prefixo || !equipe.tipo_equipe) {
+             if (!equipe.prefixo) {
                console.warn('Equipe com dados incompletos ignorada:', equipe);
                continue;
              }
              
              await safeRunAsync(db,
                `INSERT OR REPLACE INTO equipes_local
-                (id, nome, prefixo, tipo_equipe, status_composicao, encarregado_matricula, synced, last_modified)
-                VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`,
-               [equipe.id, equipe.nome || equipe.prefixo, equipe.prefixo, equipe.tipo_equipe, equipe.status_composicao || 'Pendente', equipe.encarregado_matricula]
+                (id, nome, prefixo, status_composicao, encarregado_matricula, synced, last_modified)
+                VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`,
+               [equipe.id, equipe.nome || equipe.prefixo, equipe.prefixo, equipe.status_composicao || 'Pendente', equipe.encarregado_matricula]
              );
              console.log(`✅ Equipe ${equipe.prefixo} sincronizada com sucesso`);
            }
@@ -201,7 +201,6 @@ import { supabase } from '../supabase';
                id: equipe.id,
                nome: equipe.nome,
                prefixo: equipe.prefixo,
-               tipo_equipe: equipe.tipo_equipe,
                status_composicao: equipe.status_composicao,
                encarregado_matricula: equipe.encarregado_matricula,
              });

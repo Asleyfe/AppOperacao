@@ -103,6 +103,20 @@ export default function TeamScreen() {
   };
 
   const confirmarInicioTurno = () => {
+    // Verificar se a equipe está aprovada antes de permitir o início do turno
+    if (!currentTeam) {
+      Alert.alert('Erro', 'Nenhuma equipe encontrada.');
+      return;
+    }
+
+    if (currentTeam.statusComposicao !== 'Aprovada') {
+      Alert.alert(
+        'Equipe Não Aprovada', 
+        'O turno só pode ser iniciado após a aprovação da equipe. Status atual: ' + currentTeam.statusComposicao
+      );
+      return;
+    }
+
     // Open the modal to get hora_oper
     setShowShiftStartModal(true);
   };

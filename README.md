@@ -99,6 +99,10 @@ README.md           # Documentação do projeto
 - Associação com equipes e itens GI
 - Controle de acesso baseado na equipe
 - Sistema de faturamento integrado
+- **Validações de Fluxo Operacional**:
+  - Validação de status da equipe (deve estar "Aprovada") antes do início do turno
+  - Validação de turno confirmado antes do início de qualquer serviço
+  - Controle sequencial das operações de campo
 
 ### Sistema de Faturamento
 - **Cálculo automático** baseado em valores reais de mercado
@@ -591,6 +595,113 @@ Para dúvidas ou suporte:
 - 📧 Email: [seu-email@empresa.com]
 - 📱 WhatsApp: [seu-numero]
 - 🐛 Issues: [link-para-issues]
+
+## 🔄 Implementações Recentes
+
+### Validações de Fluxo Operacional (Janeiro 2025)
+
+Foram implementadas validações críticas para garantir o fluxo correto das operações:
+
+#### 1. Validação de Status da Equipe para Início de Turno
+- **Localização**: `app/(tabs)/index.tsx` - função `confirmarInicioTurno`
+- **Regra**: Apenas equipes com status "Aprovada" podem iniciar turno
+- **Comportamento**: Exibe alerta informativo caso a equipe não esteja aprovada
+- **Impacto**: Garante que apenas equipes validadas operem em campo
+
+#### 2. Validação de Turno Confirmado para Início de Serviços
+- **Localização**: `app/(tabs)/servicos.tsx` - função `updateServiceStatus`
+- **Regra**: Serviços só podem ser iniciados após confirmação do turno da equipe
+- **Verificação**: Consulta a tabela `historico_turno` para validar turno ativo
+- **Comportamento**: Bloqueia ações de "Iniciar Deslocamento" e transições pós "Fim Deslocamento" sem turno confirmado
+- **Impacto**: Assegura rastreabilidade completa das operações
+
+#### 3. Controle Sequencial de Operações
+- **Fluxo Validado**:
+  1. Equipe deve estar "Aprovada"
+  2. Turno deve ser confirmado pelo encarregado
+  3. Apenas então serviços podem ser iniciados
+- **Benefícios**:
+  - Maior controle operacional
+  - Rastreabilidade completa
+  - Conformidade com procedimentos
+  - Redução de erros operacionais
+
+### Arquivos Modificados
+- `app/(tabs)/index.tsx`: Adicionada validação de status da equipe
+- `app/(tabs)/servicos.tsx`: Adicionada validação de turno confirmado
+- Ambas validações integradas com sistema de alertas existente
+
+## 📋 Próximas Implementações
+
+### 🎯 Roadmap de Desenvolvimento
+
+#### 1. **Adição de Serviço pelo Encarregado**
+- **Descrição**: Permitir que encarregados adicionem novos serviços diretamente pelo aplicativo
+- **Funcionalidades**:
+  - Formulário de criação de serviço
+  - Associação automática com a equipe do encarregado
+  - Validação de campos obrigatórios
+  - Integração com sistema de notificações
+- **Prioridade**: Alta
+- **Estimativa**: 2-3 dias
+
+#### 2. **Modal de Adição de Serviço**
+- **Descrição**: Interface intuitiva para criação rápida de serviços
+- **Funcionalidades**:
+  - Modal responsivo com campos organizados
+  - Seleção de tipo de serviço
+  - Campo de descrição com sugestões
+  - Seleção de data e horário
+  - Validação em tempo real
+- **Prioridade**: Alta
+- **Estimativa**: 1-2 dias
+
+#### 3. **Exclusão de Item do Checklist Durante Preenchimento**
+- **Descrição**: Permitir remoção de itens desnecessários durante o preenchimento
+- **Funcionalidades**:
+  - Botão de exclusão em cada item do checklist
+  - Confirmação de exclusão
+  - Histórico de itens removidos
+  - Validação de permissões
+- **Prioridade**: Média
+- **Estimativa**: 1 dia
+
+#### 4. **Melhoria da Scrollbar do Checklist**
+- **Descrição**: Otimizar a experiência de navegação em checklists longos
+- **Funcionalidades**:
+  - Scrollbar customizada mais visível
+  - Indicador de progresso do checklist
+  - Navegação rápida por seções
+  - Scroll suave entre itens
+- **Prioridade**: Baixa
+- **Estimativa**: 0.5 dia
+
+#### 5. **Viabilização da Aplicação Web para Acompanhamento**
+- **Descrição**: Criar versão web para supervisores e coordenadores acompanharem operações
+- **Funcionalidades**:
+  - Dashboard web responsivo
+  - Visualização em tempo real dos serviços
+  - Relatórios interativos
+  - Mapas de localização das equipes
+  - Sistema de notificações web
+  - Exportação de relatórios
+- **Prioridade**: Alta
+- **Estimativa**: 1-2 semanas
+
+### 🔧 Melhorias Técnicas Planejadas
+
+- **Performance**: Otimização de consultas e cache local
+- **Offline**: Melhorias no modo offline e sincronização
+- **UI/UX**: Refinamentos na interface e experiência do usuário
+- **Testes**: Implementação de testes automatizados
+- **Documentação**: Expansão da documentação técnica
+
+### 📊 Métricas de Sucesso
+
+- **Redução de 90%** nos erros de fluxo operacional
+- **Aumento de 50%** na produtividade das equipes
+- **100% de rastreabilidade** das operações de campo
+- **Tempo de resposta < 2s** para todas as operações
 
 ---
 
