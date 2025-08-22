@@ -48,9 +48,8 @@ const initializeDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
   
   initializationPromise = (async () => {
     try {
-      console.log('🔧 [DATABASE] Inicializando banco de dados...');
       db = await SQLite.openDatabaseAsync('app_offline.db');
-      console.log('✅ [DATABASE] Banco de dados inicializado com sucesso');
+      console.log('✅ [DATABASE] Banco de dados inicializado');
       return db;
     } catch (error) {
       console.error('❌ [DATABASE] Erro ao inicializar banco:', error);
@@ -65,11 +64,9 @@ const initializeDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
 // Tabelas principais para funcionalidades do encarregado
 const createTables = async () => {
   try {
-    console.log('🏗️ [DATABASE] Iniciando criação de tabelas...');
     const database = await initializeDatabase();
     
     if (tablesCreated) {
-      console.log('✅ [DATABASE] Tabelas já foram criadas anteriormente');
       return;
     }
   
@@ -207,6 +204,24 @@ const createTables = async () => {
     );
   `);
 
+  // Valores de Faturamento Real (para cálculos offline)
+  await database.runAsync(`
+    CREATE TABLE IF NOT EXISTS valores_faturamento_real_local (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      grupo TEXT NOT NULL,
+      item TEXT NOT NULL,
+      status TEXT NOT NULL,
+      valor_unitario REAL NOT NULL,
+      unidade TEXT,
+      observacoes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      synced BOOLEAN DEFAULT 0,
+      last_modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(grupo, item, status)
+    )
+  `);
+
   // Fila de operações para sincronização
   await database.runAsync(`
     CREATE TABLE IF NOT EXISTS operation_queue (
@@ -233,15 +248,13 @@ const createTables = async () => {
 
 const getLocalDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
   try {
-    console.log('📱 [DATABASE] Obtendo instância do banco de dados...');
     const database = await initializeDatabase();
     
     if (!tablesCreated) {
-      console.log('🏗️ [DATABASE] Tabelas não criadas, criando agora...');
+      console.log('🏗️ [DATABASE] Criando tabelas do banco local...');
       await createTables();
     }
     
-    console.log('✅ [DATABASE] Banco de dados pronto para uso');
     return database;
   } catch (error) {
     console.error('❌ [DATABASE] Erro ao obter banco de dados:', error);

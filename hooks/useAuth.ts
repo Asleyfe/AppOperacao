@@ -103,10 +103,12 @@ export function useAuth(): AuthState {
           return;
         }
         
+        // Verificar se o colaborador já está carregado para evitar sincronizações desnecessárias
+        const isNewColaborador = !colaborador || colaborador.matricula !== data.matricula;
         setColaborador(data);
         
-        // Disparar a sincronização inicial em segundo plano após o login
-        if (data && data.matricula) {
+        // Disparar a sincronização inicial apenas se for um novo colaborador
+        if (data && data.matricula && isNewColaborador) {
           console.log(`[Auth] Colaborador ${data.matricula} carregado. Iniciando sincronização de dados offline...`);
           const syncService = new SyncService();
           // Não usar await aqui para não bloquear a UI

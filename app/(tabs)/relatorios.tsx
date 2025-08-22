@@ -133,6 +133,64 @@ export default function ReportsScreen() {
     }
   };
 
+  const loadFaturamentoDataOffline = async () => {
+    try {
+      // Usar as datas de início e fim selecionadas
+      const queryStartDate = startOfWeek(startDate, { weekStartsOn: 1 });
+      const queryEndDate = endOfWeek(endDate, { weekStartsOn: 1 });
+      
+      // Determinar equipes para filtrar
+      let equipePrefixos: string[] | undefined;
+      
+      if (isEncarregado && colaborador?.matricula) {
+        // Para encarregados: buscar equipes que ele gerencia offline
+        const equipesOffline = await offlineDataService.getEquipes();
+        const equipesEncarregado = equipesOffline.filter(equipe => 
+          equipe.encarregado_matricula === colaborador.matricula
+        );
+        equipePrefixos = equipesEncarregado.map(e => e.prefixo);
+      } else if (isAdmin && selectedEquipe !== 'todas') {
+        // Para administradores: aplicar filtro de equipe selecionada
+        const equipeData = equipes.find(e => {
+          return e.id === selectedEquipe || e.id.toString() === selectedEquipe.toString();
+        });
+        if (equipeData) {
+          equipePrefixos = [equipeData.prefixo];
+        }
+      }
+      // Se for admin e selectedEquipe === 'todas', equipePrefixos fica undefined (todas as equipes)
+      
+      // Buscar dados de faturamento offline
+      const data = await offlineDataService.getFaturamentoData(
+        format(queryStartDate, 'yyyy-MM-dd'),
+        format(queryEndDate, 'yyyy-MM-dd'),
+        equipePrefixos
+      );
+      
+      // Processar dados por semana
+      const weeklyData = processWeeklyData(data || [], queryStartDate, queryEndDate);
+      setFaturamentoData(weeklyData);
+      
+      // Calcular estatísticas
+      const total = weeklyData.reduce((sum, item) => sum + item.valor_total, 0);
+      setTotalFaturamento(total);
+      setMediaFaturamento(weeklyData.length > 0 ? total / weeklyData.length : 0);
+      
+      console.log('✅ [OFFLINE] Dados de faturamento carregados:', {
+        periodo: `${format(queryStartDate, 'dd/MM')} a ${format(queryEndDate, 'dd/MM')}`,
+        equipes: equipePrefixos?.length || 'todas',
+        semanas: weeklyData.length,
+        total: total
+      });
+      
+    } catch (error) {
+      console.error('❌ [OFFLINE] Erro ao carregar dados de faturamento offline:', error);
+      setFaturamentoData([]);
+      setTotalFaturamento(0);
+      setMediaFaturamento(0);
+    }
+  };
+
   const loadFaturamentoData = async () => {
     setLoading(true);
     try {
@@ -143,10 +201,8 @@ export default function ReportsScreen() {
       
       // Verificar conectividade
       if (!isConnected) {
-        console.log('Modo offline: dados de faturamento não disponíveis');
-        setFaturamentoData([]);
-        setTotalFaturamento(0);
-        setMediaFaturamento(0);
+        console.log('Modo offline: carregando dados de faturamento offline');
+        await loadFaturamentoDataOffline();
         return;
       }
       

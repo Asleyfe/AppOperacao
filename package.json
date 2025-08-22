@@ -9,7 +9,19 @@
     "lint": "expo lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:offline": "node scripts/test-offline.js run-scenarios",
+    "test:offline:simulate-offline": "node scripts/test-offline.js simulate-offline",
+    "test:offline:simulate-online": "node scripts/test-offline.js simulate-online",
+    "test:offline:create-data": "node scripts/test-offline.js create-test-data",
+    "test:offline:monitor": "node scripts/test-offline.js monitor-sync",
+    "test:offline:scenarios": "node scripts/test-offline.js run-scenarios",
+    "test:offline:reset": "node scripts/test-offline.js reset-db",
+    "test:offline:report": "node scripts/test-offline.js generate-report",
+    "test:offline:help": "node scripts/test-offline.js help",
+    "test:offline:expo": "node scripts/test-offline.js wait-for-expo",
+    "test:offline:full": "node scripts/test-offline.js run-full-test",
+    "test:offline:check-status": "node scripts/check-test-status.js"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.2.3",

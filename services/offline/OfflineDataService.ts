@@ -47,19 +47,7 @@ export class OfflineDataService implements IDataService {
   
   async updateServico(id: number, data: any): Promise<void> {
     try {
-      console.log('💾 [OFFLINE DEBUG] Iniciando updateServico offline');
-      console.log('🆔 [OFFLINE DEBUG] ID do serviço:', id);
-      console.log('📦 [OFFLINE DEBUG] Dados recebidos:', JSON.stringify(data, null, 2));
-      
       const db = await getLocalDatabase();
-      
-      // Verificar se o serviço existe antes de atualizar
-      const existingService = await safeGetFirstAsync(
-        db,
-        'SELECT * FROM servicos_local WHERE id = ?',
-        [id]
-      );
-      console.log('🔍 [OFFLINE DEBUG] Serviço existente no banco:', existingService);
       
       // Construir campos de atualização dinamicamente
       const updateFields = [];
@@ -68,31 +56,25 @@ export class OfflineDataService implements IDataService {
       if (data.status !== undefined) {
         updateFields.push('status = ?');
         updateValues.push(data.status);
-        console.log('📊 [OFFLINE DEBUG] Atualizando status para:', data.status);
       }
       
       // Tratar timestamps
       if (data.timestamps) {
-        console.log('⏰ [OFFLINE DEBUG] Processando timestamps:', data.timestamps);
         if (data.timestamps.inicioDeslocamento) {
           updateFields.push('inicio_deslocamento = ?');
           updateValues.push(data.timestamps.inicioDeslocamento);
-          console.log('🚀 [OFFLINE DEBUG] Atualizando inicio_deslocamento:', data.timestamps.inicioDeslocamento);
         }
         if (data.timestamps.fimDeslocamento) {
           updateFields.push('fim_deslocamento = ?');
           updateValues.push(data.timestamps.fimDeslocamento);
-          console.log('🏁 [OFFLINE DEBUG] Atualizando fim_deslocamento:', data.timestamps.fimDeslocamento);
         }
         if (data.timestamps.inicioExecucao) {
           updateFields.push('inicio_execucao = ?');
           updateValues.push(data.timestamps.inicioExecucao);
-          console.log('▶️ [OFFLINE DEBUG] Atualizando inicio_execucao:', data.timestamps.inicioExecucao);
         }
         if (data.timestamps.fimExecucao) {
           updateFields.push('fim_execucao = ?');
           updateValues.push(data.timestamps.fimExecucao);
-          console.log('⏹️ [OFFLINE DEBUG] Atualizando fim_execucao:', data.timestamps.fimExecucao);
         }
       }
       
@@ -191,27 +173,16 @@ export class OfflineDataService implements IDataService {
 
   async getEquipesByEncarregado(encarregadoMatricula: string): Promise<any[]> {
     try {
-      console.log('👥 [OFFLINE DEBUG] Iniciando getEquipesByEncarregado');
-      console.log('👤 [OFFLINE DEBUG] Matrícula do encarregado:', encarregadoMatricula);
-      
       const db = await getLocalDatabase();
-      
-      // Primeiro verificar todas as equipes no banco
-      const allEquipes = await safeGetAllAsync(db, 'SELECT * FROM equipes_local');
-      console.log('📊 [OFFLINE DEBUG] Total de equipes no banco:', allEquipes.length);
-      console.log('📋 [OFFLINE DEBUG] Todas as equipes:', allEquipes);
       
       const result = await safeGetAllAsync(db,
         'SELECT * FROM equipes_local WHERE encarregado_matricula = ?',
         [encarregadoMatricula]
       );
       
-      console.log('🎯 [OFFLINE DEBUG] Equipes filtradas por encarregado:', result.length);
-      console.log('📋 [OFFLINE DEBUG] Equipes do encarregado:', result);
-      
       return result;
     } catch (error) {
-      console.error('❌ [OFFLINE DEBUG] Erro ao buscar equipes do encarregado offline:', error);
+      console.error('❌ [OFFLINE] Erro ao buscar equipes do encarregado:', error);
       throw error;
     }
   }
@@ -415,27 +386,20 @@ export class OfflineDataService implements IDataService {
 
   async getServicosByEncarregado(encarregadoId: string, today: string): Promise<any[]> {
     try {
-      console.log('🔍 [OFFLINE DEBUG] Iniciando getServicosByEncarregado');
-      console.log('👤 [OFFLINE DEBUG] Encarregado ID:', encarregadoId);
-      console.log('📅 [OFFLINE DEBUG] Data atual:', today);
-      
       const db = await getLocalDatabase();
       
-      // Primeiro, buscar todas as equipes do encarregado
+      // Buscar todas as equipes do encarregado
       const equipesResult = await safeGetAllAsync(db,
         'SELECT * FROM equipes_local WHERE encarregado_matricula = ?',
         [encarregadoId]
       );
-      console.log('👥 [OFFLINE DEBUG] Equipes do encarregado encontradas:', equipesResult);
       
       if (equipesResult.length === 0) {
-        console.log('⚠️ [OFFLINE DEBUG] Nenhuma equipe encontrada para o encarregado');
         return [];
       }
       
       // Extrair IDs das equipes
       const equipeIds = equipesResult.map(equipe => equipe.id);
-      console.log('🆔 [OFFLINE DEBUG] IDs das equipes:', equipeIds);
       
       // Buscar serviços das equipes na data atual
       const placeholders = equipeIds.map(() => '?').join(',');
@@ -447,11 +411,7 @@ export class OfflineDataService implements IDataService {
       `;
       
       const queryParams = [...equipeIds, today];
-      console.log('🔧 [OFFLINE DEBUG] Query SQL:', servicosQuery);
-      console.log('📋 [OFFLINE DEBUG] Parâmetros da query:', queryParams);
-      
       const servicosResult = await safeGetAllAsync(db, servicosQuery, queryParams);
-      console.log('📊 [OFFLINE DEBUG] Serviços encontrados (raw):', servicosResult);
       
       // Mapear para o formato esperado pela aplicação
       const servicosMapeados = servicosResult.map(servico => ({
@@ -459,7 +419,7 @@ export class OfflineDataService implements IDataService {
         numero: servico.numero,
         descricao: servico.descricao,
         status: servico.status,
-        nota: servico.nota, // Campo nota que estava faltando
+        nota: servico.nota,
         equipeId: servico.equipe_id,
         encarregadoId: servico.encarregado_id,
         dataPlanejada: servico.data_planejada,
@@ -473,12 +433,9 @@ export class OfflineDataService implements IDataService {
         lastModified: servico.last_modified
       }));
       
-      console.log('🎯 [OFFLINE DEBUG] Serviços mapeados para retorno:', servicosMapeados);
-      console.log('📈 [OFFLINE DEBUG] Total de serviços retornados:', servicosMapeados.length);
-      
       return servicosMapeados;
     } catch (error) {
-      console.error('❌ [OFFLINE DEBUG] Erro ao buscar serviços por encarregado offline:', error);
+      console.error('❌ [OFFLINE] Erro ao buscar serviços por encarregado:', error);
       throw error;
     }
   }
@@ -548,6 +505,168 @@ export class OfflineDataService implements IDataService {
     } catch (error) {
       console.error('❌ [OFFLINE DEBUG] Erro ao criar histórico de turno offline:', error);
       throw error;
+    }
+  }
+
+  // Métodos de Faturamento Offline
+  async getValoresFaturamento(): Promise<any[]> {
+    try {
+      const db = await getLocalDatabase();
+      const result = await safeGetAllAsync(db,
+        `SELECT * FROM valores_faturamento_real_local ORDER BY grupo, item, status`
+      );
+      
+      // Logs detalhados sobre os dados de faturamento carregados
+      console.log('\n💰 ===== VALORES FATURAMENTO REAL LOCAL =====');
+      console.log(`📊 Total de registros carregados: ${result.length}`);
+      
+      if (result.length > 0) {
+        // Agrupar por grupo para mostrar estatísticas
+        const grupos = result.reduce((acc: any, item: any) => {
+          if (!acc[item.grupo]) {
+            acc[item.grupo] = { count: 0, items: new Set() };
+          }
+          acc[item.grupo].count++;
+          acc[item.grupo].items.add(item.item);
+          return acc;
+        }, {});
+        
+        console.log('📋 Distribuição por grupo:');
+        Object.entries(grupos).forEach(([grupo, data]: [string, any]) => {
+          console.log(`   • ${grupo}: ${data.count} registros (${data.items.size} itens únicos)`);
+        });
+        
+        // Mostrar alguns exemplos de valores
+        console.log('💵 Exemplos de valores cadastrados:');
+        result.slice(0, 5).forEach((item: any) => {
+          console.log(`   • ${item.grupo} | ${item.item} | ${item.status} = R$ ${item.valor_unitario}`);
+        });
+        
+        if (result.length > 5) {
+          console.log(`   ... e mais ${result.length - 5} registros`);
+        }
+      } else {
+        console.log('⚠️ Nenhum valor de faturamento encontrado na tabela local');
+        console.log('💡 Verifique se a sincronização dos valores foi executada');
+      }
+      
+      console.log('===============================================\n');
+      return result;
+    } catch (error) {
+      console.error('❌ [OFFLINE] Erro ao buscar valores de faturamento:', error);
+      return [];
+    }
+  }
+
+  async getFaturamentoData(startDate: string, endDate: string, equipePrefixos?: string[]): Promise<any[]> {
+    try {
+      const db = await getLocalDatabase();
+      
+      // Query base para buscar dados de faturamento
+      let query = `
+        SELECT 
+          s.id as numero_servico,
+          s.equipe_prefixo as equipe,
+          s.data_planejada as data_servico,
+          gi.grupo,
+          gi.item,
+          gis.status,
+          gis.quantidade,
+          COALESCE(vfr.valor_unitario, 0) as valor_unitario,
+          (gis.quantidade * COALESCE(vfr.valor_unitario, 0)) as valor_total
+        FROM servicos_local s
+        INNER JOIN giservico_local gis ON s.id = gis.id_servico
+        INNER JOIN grupo_itens_local gi ON gis.id_item = gi.id
+        LEFT JOIN valores_faturamento_real_local vfr ON (
+          gi.grupo = vfr.grupo AND 
+          gi.item = vfr.item AND 
+          gis.status = vfr.status
+        )
+        WHERE s.data_planejada >= ? AND s.data_planejada <= ?
+      `;
+      
+      const params = [startDate, endDate];
+      
+      // Filtrar por equipes se especificado
+      if (equipePrefixos && equipePrefixos.length > 0) {
+        const placeholders = equipePrefixos.map(() => '?').join(',');
+        query += ` AND s.equipe_prefixo IN (${placeholders})`;
+        params.push(...equipePrefixos);
+      }
+      
+      query += ` ORDER BY s.data_planejada, s.equipe_prefixo, gi.grupo, gi.item`;
+      
+      const result = await safeGetAllAsync(db, query, params);
+      
+      console.log('✅ [OFFLINE] Dados de faturamento carregados:', {
+        periodo: `${startDate} a ${endDate}`,
+        equipes: equipePrefixos?.length || 'todas',
+        registros: result.length
+      });
+      
+      return result;
+    } catch (error) {
+      console.error('❌ [OFFLINE] Erro ao buscar dados de faturamento:', error);
+      return [];
+    }
+  }
+
+  async syncValoresFaturamento(valoresOnline: any[]): Promise<void> {
+    try {
+      const db = await getLocalDatabase();
+      
+      if (!valoresOnline || valoresOnline.length === 0) {
+        console.log('⚠️ [OFFLINE] Nenhum valor de faturamento para sincronizar');
+        return;
+      }
+      
+      console.log(`🔄 [OFFLINE] Iniciando sincronização de ${valoresOnline.length} valores de faturamento...`);
+      
+      // Limpar dados antigos
+      await safeRunAsync(db, 'DELETE FROM valores_faturamento_real_local');
+      console.log('🗑️ [OFFLINE] Dados antigos de faturamento removidos');
+      
+      // Inserir novos dados usando INSERT OR REPLACE para evitar conflitos de constraint UNIQUE
+      let sucessos = 0;
+      let erros = 0;
+      
+      for (const valor of valoresOnline) {
+        try {
+          // Validar dados obrigatórios
+          if (!valor.grupo || !valor.item || !valor.status || valor.valor_unitario === undefined) {
+            console.warn('⚠️ [OFFLINE] Valor de faturamento com dados incompletos ignorado:', valor);
+            erros++;
+            continue;
+          }
+          
+          await safeRunAsync(db,
+            `INSERT OR REPLACE INTO valores_faturamento_real_local 
+             (grupo, item, status, valor_unitario, unidade, observacoes, synced, created_at, updated_at, last_modified)
+             VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+            [
+              valor.grupo,
+              valor.item,
+              valor.status,
+              valor.valor_unitario,
+              valor.unidade || null,
+              valor.observacoes || null
+            ]
+          );
+          sucessos++;
+        } catch (itemError) {
+          console.error('❌ [OFFLINE] Erro ao inserir valor de faturamento:', valor, itemError);
+          erros++;
+        }
+      }
+      
+      console.log(`✅ [OFFLINE] Sincronização de valores de faturamento concluída: ${sucessos} sucessos, ${erros} erros`);
+      
+      if (erros > 0) {
+        console.warn(`⚠️ [OFFLINE] ${erros} valores de faturamento não puderam ser sincronizados`);
+      }
+    } catch (error) {
+      console.error('❌ [OFFLINE] Erro crítico ao sincronizar valores de faturamento:', error);
+      // Não propagar o erro para não interromper outras sincronizações
     }
   }
 }

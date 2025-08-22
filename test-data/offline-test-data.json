@@ -1,0 +1,42 @@
+{
+  "servicos": [
+    {
+      "id": "test_1755829282284_1",
+      "equipe_id": 1,
+      "data_planejada": "2025-08-22",
+      "descricao": "Serviço de teste offline - Manutenção preventiva",
+      "status": "Planejado",
+      "synced": 0,
+      "created_offline": true
+    },
+    {
+      "id": "test_1755829282284_2",
+      "equipe_id": 1,
+      "data_planejada": "2025-08-22",
+      "descricao": "Serviço de teste offline - Reparo emergencial",
+      "status": "Em Andamento",
+      "synced": 0,
+      "created_offline": true
+    }
+  ],
+  "headers": [
+    {
+      "id": "header_1755829282284_1",
+      "servico_id": "test_1755829282284_1",
+      "km_inicial": 1000,
+      "km_final": 1050,
+      "status_servico": "Iniciado",
+      "synced": 0
+    }
+  ],
+  "historico": [
+    {
+      "id": "hist_1755829282284_1",
+      "colaborador_matricula": "12345",
+      "turno": "Manhã",
+      "data": "2025-08-22",
+      "atividade": "Teste offline realizado",
+      "synced": 0
+    }
+  ]
+}
