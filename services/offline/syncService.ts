@@ -248,42 +248,9 @@ import { OfflineDataService } from './OfflineDataService';
 
          // Histórico de Turnos
          const historicoTurnos = await safeGetAllAsync(db, 'SELECT * FROM historico_turno_local ORDER BY data_turno DESC, id');
-         console.log(`\n⏰ HISTORICO_TURNO_LOCAL (${historicoTurnos.length} registros):`);
-         if (historicoTurnos.length > 0) {
-           historicoTurnos.forEach((turno: any) => {
-             console.log(`   • ID: ${turno.id} | Colaborador: ${turno.colaborador_matricula} | Equipe: ${turno.equipe_prefixo} | Data: ${turno.data_turno} | Hora Início: ${turno.hora_inicio_turno || 'N/A'} | Hora Oper: ${turno.hora_oper || 'N/A'} | Synced: ${turno.synced}`);
-           });
-         } else {
-           console.log('   ⚠️ Nenhum histórico de turno encontrado');
-         }
 
          // Valores de Faturamento
          const valoresFaturamento = await safeGetAllAsync(db, 'SELECT * FROM valores_faturamento_real_local ORDER BY grupo, item, status');
-         console.log(`\n💰 VALORES_FATURAMENTO_REAL_LOCAL (${valoresFaturamento.length} registros):`);
-         if (valoresFaturamento.length > 0) {
-           // Agrupar por grupo para estatísticas
-           const grupos = valoresFaturamento.reduce((acc: any, item: any) => {
-             if (!acc[item.grupo]) {
-               acc[item.grupo] = { count: 0, items: new Set() };
-             }
-             acc[item.grupo].count++;
-             acc[item.grupo].items.add(item.item);
-             return acc;
-           }, {});
-           
-           console.log('   📋 Distribuição por grupo:');
-           Object.entries(grupos).forEach(([grupo, data]: [string, any]) => {
-             console.log(`      • ${grupo}: ${data.count} registros (${data.items.size} itens únicos)`);
-           });
-           
-           // Mostrar alguns exemplos
-           console.log('   💵 Primeiros 3 registros:');
-           valoresFaturamento.slice(0, 3).forEach((item: any) => {
-             console.log(`      • ${item.grupo} | ${item.item} | ${item.status} = R$ ${item.valor_unitario}`);
-           });
-         } else {
-           console.log('   ⚠️ Nenhum valor de faturamento encontrado');
-         }
 
          // Resumo de sincronização
          console.log('\n📈 RESUMO DE SINCRONIZAÇÃO:');
