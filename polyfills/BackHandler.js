@@ -35,4 +35,4 @@ if (typeof require !== 'undefined') {
   }
 }
 
-export default {};
+module.exports = {};

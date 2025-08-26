@@ -1,7 +1,7 @@
 // app.config.js
-import 'dotenv/config';
+require('dotenv/config');
 
-export default {
+module.exports = {
   expo: {
     name: 'GDES',
     slug: 'gdes',
