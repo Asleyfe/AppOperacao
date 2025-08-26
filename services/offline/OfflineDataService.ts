@@ -107,12 +107,7 @@ export class OfflineDataService implements IDataService {
       
       const sql = `UPDATE servicos_local SET ${updateFields.join(', ')} WHERE id = ?`;
       
-      console.log('🔧 [OFFLINE DEBUG] SQL a ser executado:', sql);
-      console.log('📋 [OFFLINE DEBUG] Valores para SQL:', updateValues);
-      
       const result = await safeRunAsync(db, sql, updateValues);
-      
-      console.log('✅ [OFFLINE DEBUG] Resultado da execução SQL:', result);
       console.log('🎉 [OFFLINE DEBUG] Serviço atualizado offline com sucesso! ID:', id);
       
       // Verificar se a atualização foi bem-sucedida
@@ -515,40 +510,6 @@ export class OfflineDataService implements IDataService {
       const result = await safeGetAllAsync(db,
         `SELECT * FROM valores_faturamento_real_local ORDER BY grupo, item, status`
       );
-      
-      // Logs detalhados sobre os dados de faturamento carregados
-      console.log('\n💰 ===== VALORES FATURAMENTO REAL LOCAL =====');
-      console.log(`📊 Total de registros carregados: ${result.length}`);
-      
-      if (result.length > 0) {
-        // Agrupar por grupo para mostrar estatísticas
-        const grupos = result.reduce((acc: any, item: any) => {
-          if (!acc[item.grupo]) {
-            acc[item.grupo] = { count: 0, items: new Set() };
-          }
-          acc[item.grupo].count++;
-          acc[item.grupo].items.add(item.item);
-          return acc;
-        }, {});
-        
-        console.log('📋 Distribuição por grupo:');
-        Object.entries(grupos).forEach(([grupo, data]: [string, any]) => {
-          console.log(`   • ${grupo}: ${data.count} registros (${data.items.size} itens únicos)`);
-        });
-        
-        // Mostrar alguns exemplos de valores
-        console.log('💵 Exemplos de valores cadastrados:');
-        result.slice(0, 5).forEach((item: any) => {
-          console.log(`   • ${item.grupo} | ${item.item} | ${item.status} = R$ ${item.valor_unitario}`);
-        });
-        
-        if (result.length > 5) {
-          console.log(`   ... e mais ${result.length - 5} registros`);
-        }
-      } else {
-        console.log('⚠️ Nenhum valor de faturamento encontrado na tabela local');
-        console.log('💡 Verifique se a sincronização dos valores foi executada');
-      }
       
       console.log('===============================================\n');
       return result;
